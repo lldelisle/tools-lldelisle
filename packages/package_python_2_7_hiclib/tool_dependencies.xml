@@ -12,8 +12,8 @@
   <package name="matplotlib" version="1.4">
     <repository name="package_python_2_7_matplotlib_1_4" owner="iuc" prior_installation_required="True" />
   </package>
-  <package name="cython" version="0.20.1">
-    <repository name="package_cython_0_20_1" owner="iuc" prior_installation_required="True" />
+  <package name="cython" version="0.23.1">
+    <repository name="package_cython_0_23_1" owner="iuc" prior_installation_required="True" />
   </package>
   <package name="statsmodels" version="0.6.1">
     <repository name="package_python_2_7_statsmodels_0_6_1" owner="iuc" prior_installation_required="True" />
@@ -34,8 +34,8 @@
           <repository name="package_python_2_7_numpy_1_9" owner="iuc">
             <package name="numpy" version="1.9" />
           </repository>
-          <repository name="package_cython_0_20_1" owner="iuc">
-            <package name="cython" version="0.20.1" />
+          <repository name="package_cython_0_23_1" owner="iuc">
+            <package name="cython" version="0.23.1" />
           </repository>
           <package sha256sum="793869383aaa08f5c2eb8edc4c31f0ad11a547e2dcfa17aad50fdf4bcb7e4e20">
             https://bitbucket.org/mirnylab/mirnylib/get/tip.tar.gz
