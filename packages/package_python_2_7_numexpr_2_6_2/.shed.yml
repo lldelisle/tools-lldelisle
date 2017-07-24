@@ -1,0 +1,7 @@
+categories: []
+description: Contains a tool dependency definition that download and extract the version
+  2.6.2 of numexpr
+homepage_url: https://pypi.python.org/pypi/numexpr
+name: package_python_2_7_numexpr_2_6_2
+owner: lldelisle
+remote_repository_url: https://github.com/lldelisle/tools-lldelisle/blob/master/packages/package_python_2_7_numexpr_2_6_2/.shed.yml
