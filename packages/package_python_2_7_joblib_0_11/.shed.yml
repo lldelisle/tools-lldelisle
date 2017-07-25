@@ -1,0 +1,9 @@
+categories:
+- Tool Dependency Packages
+type: tool_dependency_definition
+description: Contains a tool dependency definition that download and extract the version
+  0.11 of joblib
+homepage_url: http://pythonhosted.org/joblib/
+name: package_python_2_7_joblib_0_11
+owner: lldelisle
+remote_repository_url: https://github.com/lldelisle/tools-lldelisle/blob/master/packages/package_python_2_7_joblib_0_11/.shed.yml
