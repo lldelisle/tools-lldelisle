@@ -1,0 +1,41 @@
+<tool id="cooler_csort_pairix" name="cooler_csort_tabix" version="0.0.1">
+  <description> Sort and index a contact list.</description>
+  <macros>
+    <import>macros.xml</import>
+  </macros>
+  <expand macro="requirements" />
+  <command>
+    cooler csort -i tabix -c1 $c1 -c2 $c2 -p1 $p1 -p2 $p2 -o $output $input $chromosomeSize
+  </command>
+  <inputs>
+    <param name="c1" type="integer" label="field number in the input file (starting from 1) of the chromosome of mate 1.">
+      <validator type="in_range" min="1" />
+    </param>
+    <param name="p1" type="integer" label="field number in the input file (starting from 1) of the position of mate 1.">
+      <validator type="in_range" min="1" />
+    </param>
+    <param name="c2" type="integer" label="field number in the input file (starting from 1) of the chromosome of mate 2.">
+      <validator type="in_range" min="1" />
+    </param>
+    <param name="p2" type="integer" label="field number in the input file (starting from 1) of the position of mate 2.">
+      <validator type="in_range" min="1" />
+    </param>
+    <param name="chromosomeSize" multiple="false"  type="data" format="tabular" label="Select a file with the size of chromosome (One column with the chromosome names in the desired order, one column with the sizes)."/>
+    <param name="input" multiple="false"  type="data" format="tabular" label="Select a file with the coordinates of the pairs (minimum 4 columns with chromosome and position for each mate)."/>
+  </inputs>
+  
+  <outputs>
+    <data format="bed" name="output" label="sorted and indexed contact list of $input.name"/>
+  </outputs>
+  
+  <help>
+    **cooler csort**
+    tool developped by mirnylab
+    see https://github.com/mirnylab/cooler
+    
+    command-line::
+    
+    cooler csort -i tabix -c1 c1 -c2 c2 -p1 p1 -p2 p2 -o output input chromosomeSize
+    
+  </help>
+</tool>

@@ -1,0 +1,73 @@
+<tool id="cooler_getMatrix" name="cooler_getMatrix" version="0.0.1">
+  <description> Extract a contact matrix from a cool file.</description>
+  <macros>
+    <import>macros.xml</import>
+  </macros>
+  <expand macro="requirements" />
+  <command interpreter="python">
+    cooler_getMatrix.py --input $input --output $output $balance --r1 $r1 
+    #if $differentRegions.difReg:
+      --r2 $differentRegions.r2
+    #end if
+  </command>
+  <inputs>
+    <param name="input" multiple="false" type="data" format="cool" label="Select the input cool file."/>
+    <param name="r1" type="text" label="The coordinates of a genomic region shown along the row dimension, in UCSC notation. (Example: chr1:10,000,000-11,000,000). If omitted, the entire contact matrix is printed."/>
+    <conditional name="differentRegions">
+      <param name="difReg" type="boolean" truevalue="true" falsevalue="false" label="Do you want to use a different region for the col dimension?"/>
+      <when value="true">
+        <param name="r2" type="text" label="The coordinates of a genomic region shown along the col dimension, in UCSC notation. (Example: chr1:10,000,000-11,000,000). If omitted, the entire contact matrix is printed.">
+        </param>
+      </when>                    
+      <when value="false">
+        <!-- do nothing -->
+      </when>
+    </conditional>
+    <param name="balance" type="boolean" checked="False" truevalue="--balance" label="Uses the balanced values instead of the raw values."/> 
+  </inputs>
+  
+  <outputs>
+    <data format="tabular" name="output" label="matrix from $input.name for $r1 $r2"/>
+  </outputs>
+  
+  <help>
+    **python script using the cooler package**
+    package developped by mirnylab
+    see https://github.com/mirnylab/cooler
+    
+    The output will be a matrix with no header.
+    The values are floats with maximum 6 digits or scientific notation if shorter.
+    
+    
+    script::
+    
+      import cooler
+      import sys
+      import os
+      import argparse
+      
+      def checkInput(args):
+      if args.r2 is None:
+      args.r2=args.r1
+      
+      def extractMatrix(args):
+      c = cooler.Cooler(args.input)
+      mat=c.matrix(balance=args.balance).fetch(args.r1,args.r2)
+      with open(args.output, 'w') as f:
+      for row in mat:
+      line = '\t'.join("%.6g"% value for value in row)
+      f.write(line + '\n')
+      
+      argp=argparse.ArgumentParser(description='Extract a matrix from a cool file.')
+      argp.add_argument('--input',default=None, help='a cool file to extract from.')
+      argp.add_argument('--output',default=None, help='a txt file with matrix values.')
+      argp.add_argument('--balance',action="store_true", help='If you want the balanced values (by default it is the raw).')
+      argp.add_argument('--r1',default=None,help='the region 1 on which you should generate the matrix')
+      argp.add_argument('--r2',default=None,help='the region 2 if different from region1.')
+      
+      args = argp.parse_args()
+      checkInput(args)
+      extractMatrix(args)
+      
+  </help>
+</tool>

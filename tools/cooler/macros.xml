@@ -1,0 +1,9 @@
+<macros>
+  <xml name="requirements">
+    <requirements>
+      <requirement type="package" version="0.2.5">tabix</requirement>
+      <requirement type="package" version="2.7.0">h5py</requirement>
+      <requirement type="package" version="0.7.4">cooler</requirement>
+    </requirements>
+  </xml>
+</macros>
