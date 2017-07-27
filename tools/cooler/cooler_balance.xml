@@ -22,7 +22,7 @@
     <conditional name="provideR">
       <param name="provideReg" type="boolean" truevalue="true" falsevalue="false" label="Do you want to provide a bed file with regions to mask during the balancing procedure?"/>
       <when value="true">
-        <param name="bedFile" type="data" type="bed" label="Path to a 3-column BED file containing genomic regions to mask out during the balancing procedure, e.g. sequence gaps or regions of poor mappability."/>
+        <param name="bedFile" type="data" format="bed" label="Path to a 3-column BED file containing genomic regions to mask out during the balancing procedure, e.g. sequence gaps or regions of poor mappability."/>
       </when>                    
       <when value="false">
         <!-- do nothing -->
