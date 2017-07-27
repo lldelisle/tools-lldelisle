@@ -1,0 +1,9 @@
+categories: 
+ - Epigenetics
+description: cooler different tools to process Hi-C from mirnylab
+homepage_url: https://github.com/mirnylab/cooler
+long_description: cooler package allow to build contact matrices at any resolution
+  from a list of contact, balance it and query any contact matrix.
+name: cooler
+owner: lldelisle
+remote_repository_url: https://github.com/lldelisle/tools-lldelisle/blob/master/tools/cooler/.shed.yml
