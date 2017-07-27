@@ -4,6 +4,7 @@
     <import>macros.xml</import>
   </macros>
   <expand macro="requirements" />
+  <expand macro="stdio" />
   <command interpreter="python">
     cooler_getMatrix.py --input $input --output $output $balance --r1 $r1 
     #if $differentRegions.difReg:
@@ -16,18 +17,18 @@
     <conditional name="differentRegions">
       <param name="difReg" type="boolean" truevalue="true" falsevalue="false" label="Do you want to use a different region for the col dimension?"/>
       <when value="true">
-        <param name="r2" type="text" label="The coordinates of a genomic region shown along the col dimension, in UCSC notation. (Example: chr1:10,000,000-11,000,000). If omitted, the entire contact matrix is printed.">
+        <param name="r2" type="text" value="" label="The coordinates of a genomic region shown along the col dimension, in UCSC notation. (Example: chr1:10,000,000-11,000,000). If omitted, the entire contact matrix is printed.">
         </param>
       </when>                    
       <when value="false">
         <!-- do nothing -->
       </when>
     </conditional>
-    <param name="balance" type="boolean" checked="False" truevalue="--balance" label="Uses the balanced values instead of the raw values."/> 
+    <param name="balance" type="boolean" checked="False" truevalue="--balance" falsevalue="" label="Uses the balanced values instead of the raw values."/> 
   </inputs>
   
   <outputs>
-    <data format="tabular" name="output" label="matrix from $input.name for $r1 $r2"/>
+    <data format="tabular" name="output" label="matrix from $input.name for $r1"/>
   </outputs>
   
   <help>

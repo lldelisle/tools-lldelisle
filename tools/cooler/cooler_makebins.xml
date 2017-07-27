@@ -4,11 +4,12 @@
     <import>macros.xml</import>
   </macros>
   <expand macro="requirements" />
+  <expand macro="stdio" />
   <command>
-    cooler makebins $binsize $chromosomeSize -o $output
+    cooler makebins -o $output $chromosomeSize $binsize
   </command>
   <inputs>
-    <param name="binsize" type="integer" label="Put the size of the bin in base pairs.">
+    <param name="binsize" type="integer" value="40000"  label="Put the size of the bin in base pairs.">
       <validator type="in_range" min="0" />
     </param>
     <param name="chromosomeSize" multiple="false"  type="data" format="tabular" label="Select a file with the size of chromosome (One column with the chromosome names in the desired order, one column with the sizes)."/>

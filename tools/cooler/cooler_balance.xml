@@ -4,9 +4,10 @@
     <import>macros.xml</import>
   </macros>
   <expand macro="requirements" />
+  <expand macro="stdio" />
   <command>
     cp $input $output
-    &amp;&amp; cooler balance --mad-max $mad-max --min-nnz $min-nnz --min-count $min-count --ignore-diags $ignore-diags $cis-only -f 
+    &amp;&amp; cooler balance --mad-max $madmax --min-nnz $minnnz --min-count $mincount --ignore-diags $ignorediags --tol $tol --max-iters $maxiters $cisonly -f 
     #if $provideR.provideReg:
       --blacklist $provideR.bedFile
     #end if
@@ -14,11 +15,13 @@
   </command>
   <inputs>
     <param name="input" multiple="false" type="data" format="cool" label="Select the input cool file to balance."/>
-    <param name="mad-max" type="integer" value="5" label="Ignore bins from the contact matrix using the 'MAD-max' filter: bins whose log marginal sum is less than ``mad-max`` median absolute deviations below the median log marginal sum of all the bins in the same chromosome."/>
-    <param name="min-nnz" type="integer" value="10" label="Ignore bins from the contact matrix whose marginal number of nonzeros is less than this number."/>
-    <param name="min-count" type="integer" value="0" label="Ignore bins from the contact matrix whose marginal count is less than this number."/>
-    <param name="ignore-diags" type="integer" value="2" label="Number of diagonals of the contact matrix to ignore, including the main diagonal. Examples: 0 ignores nothing, 1 ignores the main diagonal, 2 ignores diagonals (-1, 0, 1), etc."/>
-    <param name="cis-only" type="boolean" checked="False" truevalue="--cis-only" label="Calculate weights against intra-chromosomal data only instead of genome-wide."/>    
+    <param name="madmax" type="integer" value="5" label="Ignore bins from the contact matrix using the 'MAD-max' filter: bins whose log marginal sum is less than ``mad-max`` median absolute deviations below the median log marginal sum of all the bins in the same chromosome."/>
+    <param name="minnnz" type="integer" value="10" label="Ignore bins from the contact matrix whose marginal number of nonzeros is less than this number."/>
+    <param name="mincount" type="integer" value="0" label="Ignore bins from the contact matrix whose marginal count is less than this number."/>
+    <param name="ignorediags" type="integer" value="2" label="Number of diagonals of the contact matrix to ignore, including the main diagonal. Examples: 0 ignores nothing, 1 ignores the main diagonal, 2 ignores diagonals (-1, 0, 1), etc."/>
+    <param name="tol" type="float" value="1e-5" label="Threshold value of variance of the marginals for the algorithm to converge."/>
+    <param name="maxiters" type="integer" value="200" label="Maximum number of iterations to perform if convergence is not achieved.."/>
+    <param name="cisonly" type="boolean" checked="False" truevalue="--cis-only" falsevalue="" label="Calculate weights against intra-chromosomal data only instead of genome-wide."/>    
     <conditional name="provideR">
       <param name="provideReg" type="boolean" truevalue="true" falsevalue="false" label="Do you want to provide a bed file with regions to mask during the balancing procedure?"/>
       <when value="true">
@@ -41,7 +44,8 @@
     
     command-line::
     
-    cooler cload tabix --assembly assembly -c2 c2 -p2 p2 input_bed input_pairs output
+      cp $input $output
+      &amp;&amp; cooler balance --mad-max madmax --min-nnz minnnz --min-count mincount --ignore-diags ignorediags --tol tol --max-iters maxiters cisonly -f --blacklist provideR.bedFile output
     
   </help>
 </tool>
