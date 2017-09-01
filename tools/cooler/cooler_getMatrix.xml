@@ -6,7 +6,7 @@
   <expand macro="requirements" />
   <expand macro="stdio" />
   <command interpreter="python">
-    cooler_getMatrix.py --input $input --output $output $balance --r1 $r1 
+    cooler_getMatrix.py --input $input --output $output $balance $header --r1 $r1 
     #if $differentRegions.difReg:
       --r2 $differentRegions.r2
     #end if
@@ -25,6 +25,7 @@
       </when>
     </conditional>
     <param name="balance" type="boolean" checked="False" truevalue="--balance" falsevalue="" label="Uses the balanced values instead of the raw values."/> 
+    <param name="header" type="boolean" checked="False" truevalue="--header" falsevalue="" label="Add row and col names."/> 
   </inputs>
   
   <outputs>
