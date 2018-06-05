@@ -1,0 +1,78 @@
+<tool id="fromHicupToJuicebox" name="fromHicupToJuicebox" version="0.0.1">
+  <description> Convert the output of hicup (as sam or bam) to the input of juicebox.</description>
+  <requirements>
+    <requirement type="package" version="0.13.0">pysam</requirement>
+  </requirements>
+  <stdio>
+    <!-- Anything other than zero is an error -->
+    <exit_code range="1:" />
+    <exit_code range=":-1" />
+    <!-- In case the return code has not been set propery check stderr too -->
+    <regex match="Error:" />
+    <regex match="Exception:" />
+  </stdio>
+  <command>
+<![CDATA[
+        python $__tool_directory__/fromHicupToJuicebox.py
+        --fragmentFile $fragmentFile
+        --colForChr $colForChr
+        --colForStart $colForStart
+        --colForEnd $colForEnd
+        --colForID $colForID
+        --lineToSkipInFragmentFile $lineToSkipInFragmentFile
+        --methodForFrag $methodForFrag
+        $useMid
+        --output validPairs.txt
+        $inputPairs &&
+        bash $__tool_directory__/switchAndSort.sh validPairs.txt $output
+]]>
+  </command>
+  <inputs>
+    <param name="inputPairs" multiple="false"  type="data" format="sam,qname_sorted.bam" label="Select a file with the pairs as an alignment file (sam or bam). Both reads of a pair must be consecutive."/>
+    <param name="methodForFrag" type="select" label="Which method use to determine to which fragment belong a read." help="hicup is 10 bp downstream the most upstream coordinate. hiclib is 4 bases after the 5' if strand is + and 4 bases before if strand is -.">
+      <option value="hicup">hicup</option>
+      <option value="hiclib">hiclib</option>
+    </param>
+    <param name="useMid" type="boolean" checked="False" truevalue="--useMid" falsevalue="" label="Uses the position of the middle of the fragment instead of the 5'."/>
+    <param name="fragmentFile" multiple="false" type="data" format="tabular" label="Select a file with the coordinates of the fragments (digest)."/>
+    <param name="colForChr" type="integer" value="1" label="field number in the input fragment file (starting from 1) of the chromosome of each fragment.">
+      <validator type="in_range" min="1" />
+    </param>
+    <param name="colForStart" type="integer" value="2" label="field number in the input fragment file (starting from 1) of the start position of each fragment.">
+      <validator type="in_range" min="1" />
+    </param>
+    <param name="colForEnd" type="integer" value="3" label="field number in the input fragment file (starting from 1) of the end position of each fragment.">
+      <validator type="in_range" min="1" />
+    </param>
+    <param name="colForID" type="integer" value="4" label="field number in the input fragment file (starting from 1) of the ID of each fragment.">
+      <validator type="in_range" min="1" />
+    </param>
+    <param name="lineToSkipInFragmentFile" type="integer" value="2" label="Number of lines in the fragment file which are header."/>
+  </inputs>
+  
+  <outputs>
+    <data format="tabular" name="output" label="pairs in juicebox format of $inputPairs.name"/>
+  </outputs>
+
+  <tests>
+    <test>
+      <param name="inputPairs" value="dataset1_2.hicup.bam"/>
+      <param name="methodForFrag" value="hicup"/>
+      <param name="useMid" value="--useMid"/>
+      <param name="fragmentFile" value="digester_file.txt"/>
+      <param name="colForChr" value="1"/>
+      <param name="colForStart" value="2"/>
+      <param name="colForEnd" value="3"/>
+      <param name="colForID" value="4"/>
+      <param name="lineToSkipInFragmentFile" value="2"/>
+      <output name="output" file="output.txt"/>
+    </test>
+  </tests>  
+  <help><![CDATA[
+    This tool was made from hicup_filter to make the output of the hicup compatible with juicebox:
+    <readname> <str1> <chr1> <pos1> <frag1> <str2> <chr2> <pos2> <frag2> <mapq1> <mapq2>  
+    str = strand (0 for forward, anything else for reverse) 
+    pos = 5' of the read (position used to find the fragment in the 2 restriction enzyme mode but not for the sonication protocol where the position used to find the fragment is 10 bp downstream the most upstream coordinate of the mapped positions (the one given by bowtie).
+    R1 and R2 are switched if chr2<chr1 and the file is sorted by chr1 chr2
+]]>  </help>
+</tool>

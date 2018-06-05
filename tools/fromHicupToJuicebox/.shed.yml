@@ -1,0 +1,6 @@
+categories:
+   - Epigenetics
+description: Convert the output of hicup (as sam or bam) to the input of juicebox.
+name: from_hicup_to_juicebox
+owner: lldelisle
+long_description: Python script which uses the digester file to find the fragment of each read and keep from the bam the mapq, the position, the strand.
