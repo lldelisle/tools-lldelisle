@@ -1,0 +1,46 @@
+<tool id="getTn5ExtendedCoverage" name="getTn5ExtendedCoverage" version="0.0.1">
+<description> Take an input bam from ATAC-seq and generate a bedgraph using the center of the Tn5 insertion with an extension.</description>
+<command interpreter="python">
+  getTn5ExtendedCoverage.py --input $input --length $length 
+  #if str($outputType.type) == "write"
+    --output $output_text
+  #else
+    --output $output_history
+  #end if
+</command>
+<inputs>
+  <param name="input" multiple="false"  type="data" format="bam" label="Select one bam input files from your history."/>
+  <param name="length" type="integer" value="20" label="Put the length you want to extend of." help="If you put 0, the coverage will only use the 5' position of the read shifted. If you put 20, it is this position -20 to this position +20 which will be used.">
+    <validator type="in_range" min="0" />
+  </param>
+  <conditional name="outputType">
+    <param name="type" type="select" label="Do you want to write the name of the output or take it from history?">
+      <option value="write">Write</option>
+      <option value="history">From History</option>
+    </param>
+    <when value="write">
+      <param name="job_name" type="text" label="Supply a name for the output to remind you what it contains." value="bedgraph of "/>
+    </when>
+    <when value="history">
+      <param name="history_name" type="data" label="Supply the input for the name of the output." multiple="false"/>
+    </when>
+  </conditional>
+</inputs>
+
+<outputs>
+  <data format="bedgraph" name="output_text" label="${outputType.job_name}">
+    <filter>outputType['type'] == "write"</filter>
+  </data>
+  <data format="bedgraph" name="output_history" label="bedgraph of ${outputType.history_name.name}">
+    <filter>outputType['type'] == "history"</filter>
+  </data>
+</outputs>
+
+<help>
+*** Overview ***
+
+Python script which takes an input bam and generate a bedgraph corresponding to a pile-up of region centered on the 5' of each read (taking into consideration the duplication made by Tn5) with an extension.
+The bedgraph coverage is a python translation of bedtools bed to bedgraph genome coverage
+</help>
+</tool>
+                                                                

@@ -1,0 +1,6 @@
+categories:
+   - Epigenetics
+description: Take an input bam from ATAC-seq and generate a bedgraph using the center of the Tn5 insertion with an extension
+name: gettn5extendedcoverage
+owner: lldelisle
+long_description: Python script which uses a function inspired from bedtools to compute a coverage from a bam file. 
