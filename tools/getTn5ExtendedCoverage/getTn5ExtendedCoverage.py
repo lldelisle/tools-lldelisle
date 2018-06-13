@@ -40,7 +40,7 @@ def fiveP_shifted_oneB_read_start(read):
 
 def readBamAndComputeShiftedCoverage(inbam,outBed,l):
   with open(outBed,'w') as fo:
-    with pysam.AlignmentFile(inbam,'r') as bamfile:
+    with pysam.AlignmentFile(inbam,'rb') as bamfile:
       gen=dict(zip(bamfile.references,bamfile.lengths))
       for curChr in gen:
         starts={}
