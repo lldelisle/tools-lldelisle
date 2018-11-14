@@ -69,10 +69,11 @@ def readSamFromHicupAndWriteOutputForJuicebox(in_samOrBam,fo,useMid,bigDic,metho
   singleReads=0
   informativeLineNumber=0
   pairOnGoing=False
-  os.mkfifo('bampipe')
-  command = 'samtools view -h '+in_samOrBam+' > bampipe'
+  tmpDir=tempfile.mkdtemp()
+  os.mkfifo(tmpDir+'bampipe')
+  command = 'samtools view -h '+in_samOrBam+' > '+tmpDir+'bampipe'
   p = subprocess.Popen(command, shell=True)
-  with pysam.Samfile('bampipe', 'r') as f:
+  with pysam.Samfile(tmpDir+'bampipe', 'r') as f:
     for read in f.fetch():
       informativeLineNumber+=1
       bowtieReadPos=read.reference_start+1
