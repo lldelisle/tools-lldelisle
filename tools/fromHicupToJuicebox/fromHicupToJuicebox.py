@@ -20,7 +20,7 @@ class Error(Exception):
 
 class InputError(Error):
     """Exception raised for errors in the input.
-  
+
     Attributes:
         expr -- input expression in which the error occurred
         msg  -- explanation of the error
@@ -28,10 +28,10 @@ class InputError(Error):
     def __init__(self, expr, msg):
         self.expr = expr
         self.msg = msg
-  
+
     def __str__(self):
         return self.expr+"\n"+self.msg
-  
+
 
 def find_FragAndMid(chrBiDic, x):
     'Find fragID and midPosition value for the x coordinates'
@@ -53,8 +53,9 @@ def loadFragFile(fragmentFile, colC, colS, colE, colI, headerSize):
                 continue
             v = line.split()
             if(len(v) < max(colC, colS, colE, colI)):
-                stringError = ("The ids of columns specified in the input for "
-                               "the fragment file are incompatible with the line :\n")
+                stringError = ("The ids of columns specified in the input"
+                               " for the fragment file are incompatible"
+                               " with the line :\n")
                 raise InputError("len(v) < max(colC, colS, colE, colI)",
                                  stringError + line)
             if(v[colC] == currentChr):
@@ -65,7 +66,8 @@ def loadFragFile(fragmentFile, colC, colS, colE, colI, headerSize):
                 currentChr = v[colC]
                 currentListOfStarts = [int(v[colS])]
                 currentDic = {}
-            currentDic[v[colS]] = [int(v[colI]), int((int(v[colE])+int(v[colS]))/2)]
+            currentDic[v[colS]] = [int(v[colI]),
+                                   int((int(v[colE])+int(v[colS]))/2)]
     dicFragIDStart[currentChr] = {'starts': currentListOfStarts,
                                   'dic': currentDic}
     return(dicFragIDStart)
@@ -108,9 +110,11 @@ def readSamFromHicupAndWriteOutputForJuicebox(in_samOrBam,
                 # this bowtie+10 is to follow hicup_filter <= 6.1.0
             elif method == 'hiclib':
                 if read.is_reverse:
-                  fragInfo = find_FragAndMid(bigDic[refName], read.reference_end-4)
+                    fragInfo = find_FragAndMid(bigDic[refName],
+                                               read.reference_end-4)
                 else:
-                  fragInfo = find_FragAndMid(bigDic[refName], bowtieReadPos+4)
+                    fragInfo = find_FragAndMid(bigDic[refName],
+                                               bowtieReadPos+4)
             if useMid:
                 currentPos = fragInfo[1]
             else:
@@ -128,7 +132,8 @@ def readSamFromHicupAndWriteOutputForJuicebox(in_samOrBam,
                 if readname != read.qname.split("/")[0]:
                     singleReads += 1
                     print(readname +
-                          " is a single read or the sam/bam is not sorted by read id.")
+                          (" is a single read or the sam/bam"
+                           " is not sorted by read id."))
                     readname = read.qname.split("/")[0]
                     str1 = int(read.is_reverse)
                     chr1 = refName
@@ -136,8 +141,8 @@ def readSamFromHicupAndWriteOutputForJuicebox(in_samOrBam,
                     frag1 = fragInfo[0]
                     mapq1 = read.mapping_quality
                     if(singleReads > 10 and informativeLineNumber < 20):
-                      raise Exception(("The sam/bam is probably not sorted by qname."
-                                      " Job stopped."))
+                        raise Exception(("The sam/bam is probably not sorted"
+                                         " by qname. Job stopped."))
                 else:
                     str2 = int(read.is_reverse)
                     chr2 = refName
@@ -146,8 +151,8 @@ def readSamFromHicupAndWriteOutputForJuicebox(in_samOrBam,
                     mapq2 = read.mapping_quality
                     pairOnGoing = False
                     fo.write("%s\t%i\t%s\t%i\t%i\t%i\t%s\t%i\t%i\t%i\t%i\n"
-                             % (readname, str1, chr1, pos1, frag1, str2, chr2, pos2,
-                                frag2, mapq1, mapq2))
+                             % (readname, str1, chr1, pos1, frag1, str2, chr2,
+                                pos2, frag2, mapq1, mapq2))
 
 
 argp = argparse.ArgumentParser(

@@ -34,13 +34,15 @@ def reportCoverage(chrName, starts, ends, fileout, lengthChrom):
 
 def fiveP_shifted_oneB_read_start(read):
     if read.is_reverse:
-        # Read is aligned reverse we remove 5 bases because the Tn5 duplicates 9 pb
+        # Read is aligned reverse we remove 5 bases because
+        # the Tn5 duplicates 9 pb
         return read.reference_end-5
     else:
-        # Read is aligned forward we had 4 bases because the Tn5 duplicates 9 bp
+        # Read is aligned forward we had 4 bases because
+        # the Tn5 duplicates 9 bp
         # We need to add 1 because a bam file is 0-based.
         return read.reference_start+1+4
-  
+ 
 
 def readBamAndComputeShiftedCoverage(inbam, outBed, l):
     with open(outBed, 'w') as fo:
@@ -61,7 +63,8 @@ def readBamAndComputeShiftedCoverage(inbam, outBed, l):
 
 argp = argparse.ArgumentParser(
     description=("compute coverage like bedtools"
-               " of 5' of reads shifted 4 or 5 bases and extended of length."))
+                 " of 5' of reads shifted 4 or 5 bases"
+                 " and extended of length."))
 argp.add_argument('--input', default=None,
                   help="input coordinates-sorted bam with alignement.")
 argp.add_argument('--length', default=None)

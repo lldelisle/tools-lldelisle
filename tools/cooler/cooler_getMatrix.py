@@ -13,7 +13,7 @@ def getHeaders(c, r, a):
     chromID = c.bins().fetch(r).as_matrix(['chrom'])
     starts = c.bins().fetch(r).as_matrix(['start'])
     ends = c.bins().fetch(r).as_matrix(['end'])
-    return(["%s|%s|%s:%i-%i" % (i, a, chromid[0], s, e) 
+    return(["%s|%s|%s:%i-%i" % (i, a, chromid[0], s, e)
             for i, chromid, s, e in zip(fragID, chromID, starts, ends)])
 
 
