@@ -63,7 +63,7 @@
   <help>
   *** Overview ***
   
-  Python script which takes an input bam and generate a bedgraph corresponding to a pile-up of region centered on the 5' of each read (taking into consideration the duplication made by Tn5) with an extension.
+  Python script which takes an input bam (indexed) and generate a bedgraph corresponding to a pile-up of region centered on the 5' of each read (taking into consideration the duplication made by Tn5) with an extension.
   The bedgraph coverage is a python translation of bedtools bed to bedgraph genome coverage
   </help>
 </tool>

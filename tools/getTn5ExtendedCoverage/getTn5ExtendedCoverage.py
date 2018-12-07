@@ -66,7 +66,7 @@ argp = argparse.ArgumentParser(
                  " of 5' of reads shifted 4 or 5 bases"
                  " and extended of length."))
 argp.add_argument('--input', default=None,
-                  help="input coordinates-sorted bam with alignement.")
+                  help="input indexed coordinates-sorted bam with alignement.")
 argp.add_argument('--length', default=None)
 argp.add_argument('--output', default=None)
 args = argp.parse_args()
