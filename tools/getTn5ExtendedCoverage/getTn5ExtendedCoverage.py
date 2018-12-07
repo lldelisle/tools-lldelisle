@@ -42,7 +42,7 @@ def fiveP_shifted_oneB_read_start(read):
         # the Tn5 duplicates 9 bp
         # We need to add 1 because a bam file is 0-based.
         return read.reference_start+1+4
- 
+
 
 def readBamAndComputeShiftedCoverage(inbam, outBed, l):
     with open(outBed, 'w') as fo:
