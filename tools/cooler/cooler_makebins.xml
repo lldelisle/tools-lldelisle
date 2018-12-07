@@ -19,6 +19,14 @@
     <data format="bed" name="output" label="bins.${binsize} of ${chromosomeSize.name}"/>
   </outputs>
   
+  <tests>
+    <test>
+      <param name="binsize" value="1000000"/>
+      <param name="chromosomeSize" value="chr19.size"/>
+      <output name="output" file="chr19.1M.bins"/>
+    </test>
+  </tests> 
+
   <help>
     **cooler makebins**
     tool developped by mirnylab

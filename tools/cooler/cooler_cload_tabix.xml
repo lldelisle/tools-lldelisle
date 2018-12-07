@@ -24,6 +24,17 @@
     <data format="cool" name="output" label="cool file from $input_pairs.name and $input_bed.name"/>
   </outputs>
   
+  <tests>
+    <test>
+      <param name="input_pairs" value="input.validPairs.tabix"/>
+      <param name="input_bed" value="chr19.1M.bins"/>
+      <param name="assembly" value="chr19"/>
+      <param name="c2" value="7"/>
+      <param name="p2" value="8"/>
+      <output name="output" file="input.cool"/>
+    </test>
+  </tests> 
+
   <help>
     **cooler cload**
     tool developped by mirnylab

@@ -37,6 +37,20 @@
     <data format="cool" name="output" label="balanced of $input.name"/>
   </outputs>
   
+  <tests>
+    <test>
+      <param name="input" value="input.cool"/>
+      <param name="madmax" value="5"/>
+      <param name="mincount" value="0"/>
+      <param name="ignorediags" value="2"/>
+      <param name="tol" value="1e-5"/>
+      <param name="maxiters" value="1000"/>
+      <param name="cisonly" value="True"/>
+      <param name="provideReg" value="False"/>
+      <output name="output" file="output.cool"/>
+    </test>
+  </tests> 
+
   <help>
     **cooler cload**
     tool developped by mirnylab

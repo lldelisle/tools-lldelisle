@@ -29,6 +29,18 @@
     <data format="tabix" name="output" label="sorted and indexed contact list of $input.name"/>
   </outputs>
   
+  <tests>
+    <test>
+      <param name="input" value="input.validPairs.txt"/>
+      <param name="chromosomeSize" value="chr19.size"/>
+      <param name="c1" value="3"/>
+      <param name="p1" value="4"/>
+      <param name="c2" value="7"/>
+      <param name="p2" value="8"/>
+      <output name="output" file="input.validPairs.tabix"/>
+    </test>
+  </tests> 
+
   <help>
     **cooler csort**
     tool developped by mirnylab

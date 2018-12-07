@@ -32,6 +32,25 @@
     <data format="tabular" name="output" label="matrix from $input.name for $r1"/>
   </outputs>
   
+  <tests>
+    <test>
+      <param name="input" value="output.cool"/>
+      <param name="r1" value="chr19:1-50000000"/>
+      <param name="difReg" value="False"/>
+      <param name="balance" value="True"/>
+      <param name="header" value="False"/>
+      <output name="output" file="matrix1.txt"/>
+    </test>
+    <test>
+      <param name="input" value="input.cool"/>
+      <param name="r1" value="chr19:1-50000000"/>
+      <param name="difReg" value="False"/>
+      <param name="balance" value="False"/>
+      <param name="header" value="True"/>
+      <output name="output" file="matrix2.txt"/>
+    </test>
+  </tests> 
+
   <help>
     **python script using the cooler package**
     package developped by mirnylab
