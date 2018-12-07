@@ -28,8 +28,8 @@ def reportCoverage(chrName, starts, ends, fileout, lengthChrom):
       currentDepth -= ends[i]
   # Print the last
   if (lastDepth > 0):
-    fileout.write(chrName+"\t"+str(lastStart)+"\t"+
-                  str(maxindex+1)+"\t"+str(lastDepth)+"\n")
+    fileout.write(chrName + "\t" + str(lastStart) + "\t" +
+                  str(maxindex+1) + "\t" + str(lastDepth) + "\n")
 
 
 def fiveP_shifted_oneB_read_start(read):

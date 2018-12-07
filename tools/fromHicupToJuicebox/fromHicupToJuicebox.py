@@ -1,15 +1,15 @@
 from __future__ import print_function
 
 import argparse
-import os
 import bisect
-import sys
+import os
 import subprocess
+import sys
 import tempfile
+from signal import SIG_DFL, SIGPIPE, signal
 
 import pysam
 
-from signal import SIGPIPE, SIG_DFL, signal
 signal(SIGPIPE, SIG_DFL)
 
 
@@ -81,7 +81,7 @@ def fiveP_oneB_read_start(read):
 def readSamFromHicupAndWriteOutputForJuicebox(in_samOrBam,
                                               fo, useMid, bigDic, method):
   """"return the validpair file
-  <readname> <str1> <chr1> <pos1> <frag1> <str2> 
+  <readname> <str1> <chr1> <pos1> <frag1> <str2>
   <chr2> <pos2> <frag2> <mapq1> <mapq2>
   str = strand (0 for forward, anything else for reverse)
   pos = 5'of the read (position used to find the fragment
@@ -146,7 +146,7 @@ def readSamFromHicupAndWriteOutputForJuicebox(in_samOrBam,
           mapq2 = read.mapping_quality
           pairOnGoing = False
           fo.write("%s\t%i\t%s\t%i\t%i\t%i\t%s\t%i\t%i\t%i\t%i\n"
-                   % (readname,str1, chr1, pos1, frag1, str2, chr2, pos2,
+                   % (readname, str1, chr1, pos1, frag1, str2, chr2, pos2,
                       frag2, mapq1, mapq2))
 
 
@@ -160,31 +160,35 @@ argp = argparse.ArgumentParser(
 argp.add_argument('sam', default=None,
                   help="Input sam or bam with pairs like hicup output.")
 argp.add_argument('--output', default=sys.stdout,
-                  type=argparse.FileType('w'), help="Output valid pair file.")
+                  type=argparse.FileType('w'),
+                  help="Output valid pair file.")
 argp.add_argument('--fragmentFile', default=None,
-                  help="A file containing the coordinates of each fragment id.")
+                  help=("A file containing the coordinates"
+                        " of each fragment id."))
 argp.add_argument('--colForChr', default=1,
                   help=("The number of the column for the chromosome"
                         " in the fragment file."), type=int)
 argp.add_argument('--colForStart', default=2,
                   help=("The number of the column for the start position"
-                    " in the fragment file."), type=int)
+                        " in the fragment file."), type=int)
 argp.add_argument('--colForEnd', default=3,
                   help=("The number of the column for the end position"
-                    " in the fragment file."), type=int)
+                        " in the fragment file."), type=int)
 argp.add_argument('--colForID', default=4,
                   help=("The number of the column for the fragment id"
-                    " in the fragment file."), type=int)
+                        " in the fragment file."), type=int)
 argp.add_argument('--lineToSkipInFragmentFile', default=0,
-                  help="The number line to skip in the fragment file.", type=int)
-argp.add_argument('--useMid', help=("Use the middle of the fragments"
-  " instead of the 5' position."), action="store_true")
+                  help="The number line to skip in the fragment file.",
+                  type=int)
+argp.add_argument('--useMid', action="store_true",
+                  help=("Use the middle of the fragments"
+                        " instead of the 5' position."))
 argp.add_argument('--methodForFrag',
                   help=("Which method use to determine to which fragment"
                     " belong a read. hicup is 10 bp downstream the most"
                     " upstream coordinate. hiclib is 4 bases after the 5'"
                     " if strand is + and 4 bases before if strand is -."),
-                  choices=['hicup','hiclib'], default='hicup')
+                  choices=['hicup', 'hiclib'], default='hicup')
 args = argp.parse_args()
 print("Processing fragment file...", file=sys.stderr)
 bigDic = loadFragFile(args.fragmentFile, args.colForChr-1, args.colForStart-1,
