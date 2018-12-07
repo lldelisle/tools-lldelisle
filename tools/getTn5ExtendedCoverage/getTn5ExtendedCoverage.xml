@@ -51,6 +51,15 @@
     </data>
   </outputs>
   
+  <tests>
+    <test>
+      <param name="input" value="input.bam"/>
+      <param name="length" value="20"/>
+      <param name="outputType" value="write"/>
+      <output name="output_text" file="ATAC.bedGraph"/>
+    </test>
+  </tests> 
+
   <help>
   *** Overview ***
   
