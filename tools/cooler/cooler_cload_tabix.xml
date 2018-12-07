@@ -6,10 +6,30 @@
   <expand macro="requirements" />
   <expand macro="stdio" />
   <command>
+<![CDATA[
+    #if $downloaded.isDownloaded:
+      tabix -f -s $downloaded.c1 -b $downloaded.p1 -e $downloaded.p1 $input_pairs &&
+    #end if
     cooler cload tabix --assembly $assembly -c2 $c2 -p2 $p2 $input_bed $input_pairs $output
+]]>
   </command>
   <inputs>
+    <param name="input_pairs" multiple="false"  type="data" format="tabix" label="Select the output of csort_tabix."/>
     <param name="assembly" type="text" label="name of genome assembly"/>
+    <conditional name="downloaded">
+      <param name="isDownloaded" type="boolean" truevalue="true" falsevalue="false" label="Is your pair tabix file coming from upload?"/>
+      <when value="true">
+        <param name="c1" type="integer" value="1" label="field number in the input file (starting from 1) of the chromosome of mate 1.">
+          <validator type="in_range" min="1" />
+        </param>
+        <param name="p1" type="integer" value="2" label="field number in the input file (starting from 1) of the position of mate 1.">
+          <validator type="in_range" min="1" />
+        </param>
+      </when>                    
+      <when value="false">
+        <!-- do nothing -->
+      </when>
+    </conditional>
     <param name="c2" type="integer" value="3" label="field number in the input file (starting from 1) of the chromosome of mate 2 (same as in csort).">
       <validator type="in_range" min="1" />
     </param>
@@ -17,7 +37,6 @@
       <validator type="in_range" min="1" />
     </param>
     <param name="input_bed" multiple="false"  type="data" format="bed" label="Select the output of makebins."/>
-    <param name="input_pairs" multiple="false"  type="data" format="tabix" label="Select the output of csort_tabix."/>
   </inputs>
   
   <outputs>
@@ -27,6 +46,9 @@
   <tests>
     <test>
       <param name="input_pairs" value="input.validPairs.tabix"/>
+      <param name="isDownloaded" value="True"/>
+      <param name="c1" value="3"/>
+      <param name="p1" value="4"/>
       <param name="input_bed" value="chr19.1M.bins"/>
       <param name="assembly" value="chr19"/>
       <param name="c2" value="7"/>
