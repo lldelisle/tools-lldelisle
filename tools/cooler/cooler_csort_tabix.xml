@@ -37,7 +37,7 @@
       <param name="p1" value="4"/>
       <param name="c2" value="7"/>
       <param name="p2" value="8"/>
-      <output name="output" file="input.validPairs.tabix"/>
+      <output name="output" file="input.validPairs.tabix" ftype="tabix"/>
     </test>
   </tests> 
 

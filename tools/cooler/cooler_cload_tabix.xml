@@ -1,4 +1,4 @@
-<tool id="cooler_cload_pairix" name="cooler_cload_tabix" version="0.0.1">
+<tool id="cooler_cload_pairix" name="cooler_cload_tabix" version="0.0.2">
   <description> Create a cooler from a tabix-indexed contact file and a list of genomic bins.</description>
   <macros>
     <import>macros.xml</import>
@@ -53,7 +53,7 @@
       <param name="assembly" value="chr19"/>
       <param name="c2" value="7"/>
       <param name="p2" value="8"/>
-      <output name="output" file="input.cool"/>
+      <output name="output" file="input.cool" ftype="cool"/>
     </test>
   </tests> 
 
