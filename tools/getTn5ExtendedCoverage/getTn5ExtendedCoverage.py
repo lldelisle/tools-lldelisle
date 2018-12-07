@@ -10,16 +10,16 @@ def reportCoverage(chrName, starts, ends, fileout, lengthChrom):
   lastStart = -1
   lastDepth = -1
   minindex = max(1, min(starts.keys()))
-  maxindex = min(lengthChrom-1,max(ends.keys()))
+  maxindex = min(lengthChrom-1, max(ends.keys()))
   for i in range(minindex, maxindex):
     if (i in starts):
       currentDepth += starts[i]
     if (currentDepth != lastDepth):
-    # The coverage changed
+      # The coverage changed
       if (lastDepth > 0):
         # Only non 0 regions are reported
-        fileout.write(chrName+"\t"+str(lastStart)+"\t"+
-                      str(i)+"\t"+str(lastDepth)+"\n")
+        fileout.write(chrName + "\t" + str(lastStart) + "\t" +
+                      str(i) + "\t" + str(lastDepth) + "\n")
       # We update the parameters
       lastStart = i
       lastDepth = currentDepth
@@ -38,7 +38,8 @@ def fiveP_shifted_oneB_read_start(read):
     return read.reference_end-5
   else:
     # Read is aligned forward we had 4 bases because the Tn5 duplicates 9 bp
-    return read.reference_start+1+4 # We need to add 1 because a bam file is 0-based.
+    # We need to add 1 because a bam file is 0-based.
+    return read.reference_start+1+4
 
 
 def readBamAndComputeShiftedCoverage(inbam, outBed, l):
@@ -58,9 +59,10 @@ def readBamAndComputeShiftedCoverage(inbam, outBed, l):
           reportCoverage(curChr, starts, ends, fo, gen[curChr])
 
 
-argp=argparse.ArgumentParser(description=("compute coverage like bedtools"
-  " of 5' of reads shifted 4 or 5 bases and extended of length."))
-argp.add_argument('--input', default=None, 
+argp = argparse.ArgumentParser(
+  description=("compute coverage like bedtools"
+               " of 5' of reads shifted 4 or 5 bases and extended of length."))
+argp.add_argument('--input', default=None,
                   help="input coordinates-sorted bam with alignement.")
 argp.add_argument('--length', default=None)
 argp.add_argument('--output', default=None)
