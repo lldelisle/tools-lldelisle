@@ -13,8 +13,8 @@ def getHeaders(c, r, a):
     chromID = c.bins().fetch(r).as_matrix(['chrom'])
     starts = c.bins().fetch(r).as_matrix(['start'])
     ends = c.bins().fetch(r).as_matrix(['end'])
-    return(["%s|%s|%s:%i-%i" % (i, a, chromid[0], s, e)
-                    for i, chromid, s, e in zip(fragID, chromID, starts, ends)])
+    return(["%s|%s|%s:%i-%i" % (i, a, chromid[0], s, e) 
+            for i, chromid, s, e in zip(fragID, chromID, starts, ends)])
 
 
 def extractMatrix(args):
@@ -28,7 +28,8 @@ def extractMatrix(args):
             line = "%ix%i" % (len(rowH), len(colH)) + '\t' + '\t'.join(colH)
             f.write(line + '\n')
             for i, row in enumerate(mat):
-                line = rowH[i] + '\t' + '\t'.join("%.6g" % value for value in row)
+                line = (rowH[i] + '\t' +
+                        '\t'.join("%.6g" % value for value in row))
                 f.write(line + '\n')
     else:
         with open(args.output, 'w') as f:
