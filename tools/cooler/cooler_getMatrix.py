@@ -10,9 +10,10 @@ def checkInput(args):
 
 def getHeaders(c, r, a):
     fragID = c.bins().fetch(r).axes[0]
-    chromID = c.bins().fetch(r).as_matrix(['chrom'])
-    starts = c.bins().fetch(r).as_matrix(['start'])
-    ends = c.bins().fetch(r).as_matrix(['end'])
+    matrixWithAllInfo = c.bins().fetch(r).values
+    chromID = matrixWithAllInfo[:, [0]]
+    starts = matrixWithAllInfo[:, [1]]
+    ends = matrixWithAllInfo[:, [2]]
     return(["%s|%s|%s:%i-%i" % (i, a, chromid[0], s, e)
             for i, chromid, s, e in zip(fragID, chromID, starts, ends)])
 
