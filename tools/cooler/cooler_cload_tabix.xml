@@ -57,7 +57,7 @@
       <param name="assembly" value="chr19"/>
       <param name="c2" value="7"/>
       <param name="p2" value="8"/>
-      <output name="output" file="input.cool" ftype="cool"/>
+      <output name="output" file="input.cool" ftype="cool" compare="sim_size"/>
     </test>
   </tests> 
 
