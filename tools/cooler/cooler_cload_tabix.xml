@@ -12,9 +12,9 @@
       tabix -f -s $downloaded.c1 -b $downloaded.p1 -e $downloaded.p1 input.tabix &&
     #else:
       ln -s $input_pairs > input.tabix &&
-      ln -s ${input_pairs}.tbi &&
+      ln -s ${input_pairs}.tbi input.tabix.tbi &&
     #end if
-    cooler cload tabix --assembly $assembly -c2 $c2 -p2 $p2 $input_bed $input_pairs $output
+    cooler cload tabix --assembly $assembly -c2 $c2 -p2 $p2 $input_bed input.tabix $output
 ]]>
   </command>
   <inputs>
