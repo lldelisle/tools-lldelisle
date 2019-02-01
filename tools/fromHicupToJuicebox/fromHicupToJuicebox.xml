@@ -2,6 +2,7 @@
   <description> Convert the output of hicup (as sam or bam) to the input of juicebox.</description>
   <requirements>
     <requirement type="package" version="0.13.0">pysam</requirement>
+    <requirement type="package" version="1.9">samtools</requirement>
   </requirements>
   <stdio>
     <!-- Anything other than zero is an error -->
