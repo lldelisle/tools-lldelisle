@@ -28,7 +28,7 @@
   <tests>
     <test>
       <param name="input" value="input.sam"/>
-      <output name="output" file="output.bam"/>
+      <output name="output" file="output.bam" ftype="unsorted.bam"/>
     </test>
   </tests>  
   <help><![CDATA[
