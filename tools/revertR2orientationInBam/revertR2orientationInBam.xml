@@ -18,7 +18,7 @@
   </command>
   <inputs>
     <!-- note unsorted bam includes all derived bam types (inlcuding bam which is sorted) -->
-    <param name="input" multiple="false"  type="data" format="sam,unsorted.bam" label="Select a sam or bam file."/>
+    <param name="input" multiple="false"  type="data" format="sam,bam" label="Select a sam or bam file."/>
    </inputs>
   
   <outputs>
@@ -28,7 +28,7 @@
   <tests>
     <test>
       <param name="input" value="input.sam"/>
-      <output name="output" file="output.bam" ftype="unsorted.bam"/>
+      <output name="output" file="output.bam" ftype="bam"/>
     </test>
   </tests>  
   <help><![CDATA[
