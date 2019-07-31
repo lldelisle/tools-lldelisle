@@ -1,0 +1,7 @@
+categories: [Convert Formats]
+description: Convert GTF files to BED12 format
+long_description: Convert GTF files to BED12 format using the gffutils. It will use as names transcript_name or gene_name when available.
+homepage_url: https://pythonhosted.org/gffutils/contents.html
+name: fromgtftobed12
+owner: lldelisle
+remote_repository_url: https://github.com/lldelisle/tools-lldelisle/tree/master/tools/fromgtfTobed12

@@ -1,0 +1,52 @@
+<tool id="fromgtfTobed12" name="fromgtftobed12" version="0.0.1">
+  <description> Convert a gtf to a bed12.</description>
+  <requirements>
+    <requirement type="package" version="0.9">gffutils</requirement>
+  </requirements>
+  <stdio>
+    <!-- Anything other than zero is an error -->
+    <exit_code range="1:" />
+    <exit_code range=":-1" />
+    <!-- In case the return code has not been set propery check stderr too -->
+    <regex match="Error:" />
+    <regex match="Exception:" />
+  </stdio>
+  <command>
+<![CDATA[
+        python3 $__tool_directory__/fromgtfTobed12.py
+        $useGene
+        --output $output
+        $input
+]]>
+  </command>
+  <inputs>
+    <param name="input" multiple="false" type="data" format="gtf" label="Select the gtf to convert."/>
+    <param name="useGene" type="boolean" checked="False" truevalue="--useGene" falsevalue="" label="Uses the gene name instead of the transcript name."/>
+  </inputs>
+  
+  <outputs>
+    <data format="bed" name="output" label="$input.name as bed12"/>
+  </outputs>
+
+  <tests>
+    <test>
+      <param name="input" value="Homo_sapiens.GRCh38.95_491firstLines.gtf.gz"/>
+      <output name="output" file="test.bed"/>
+    </test>
+    <test>
+      <param name="input" value="Homo_sapiens.GRCh38.95_491firstLines.gtf.gz"/>
+      <param name="useGene" value="--useGene"/>
+      <output name="output" file="testWithGenes.bed"/>
+    </test>
+  </tests>  
+  <help><![CDATA[
+    This tool uses gffutils to convert gtf to bed12. One line per transcript.
+    It will use as names transcript_name or gene_name when available.
+]]>  </help>
+  <citations>
+  <citation type="bibtex">@online{gffutils,
+  url = {https://pythonhosted.org/gffutils/contents.html}
+  }
+  </citation>
+  </citations>
+</tool>
