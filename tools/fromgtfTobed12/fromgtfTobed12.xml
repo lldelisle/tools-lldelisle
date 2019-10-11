@@ -15,13 +15,15 @@
 <![CDATA[
         python3 $__tool_directory__/fromgtfTobed12.py
         $useGene
+        $mergeTranscripts
         --output $output
         $input
 ]]>
   </command>
   <inputs>
     <param name="input" multiple="false" type="data" format="gtf" label="Select the gtf to convert."/>
-    <param name="useGene" type="boolean" checked="False" truevalue="--useGene" falsevalue="" label="Uses the gene name instead of the transcript name."/>
+    <param argument="--useGene" type="boolean" checked="False" truevalue="--useGene" falsevalue="" label="Uses the gene name instead of the transcript name."/>
+    <param argument="--mergeTranscripts" type="boolean" checked="False" truevalue="--mergeTranscripts" falsevalue="" label="Merge all transcripts of a gene in a single line."/>
   </inputs>
   
   <outputs>
