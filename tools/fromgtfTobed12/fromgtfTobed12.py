@@ -4,13 +4,17 @@ import sys
 import gffutils
 
 
-def convert_gtf_to_bed(fn, fo, useGene):
+def convert_gtf_to_bed(fn, fo, useGene, mergeTranscripts):
     db = gffutils.create_db(fn, ':memory:')
     # For each transcript:
     prefered_name = "transcript_name"
     if useGene:
         prefered_name = "gene_name"
-    for tr in db.features_of_type("transcript", order_by='start'):
+    if mergeTranscripts:
+        all_items = db.features_of_type("gene", order_by='start')
+    else:
+        all_items = db.features_of_type("transcript", order_by='start')
+    for tr in all_items:
         # The name would be the name of the transcript/gene if exists
         try:
             trName = tr.attributes[prefered_name][0]
@@ -66,5 +70,8 @@ argp.add_argument('--output', default=sys.stdout,
 argp.add_argument('--useGene', action="store_true",
                   help="Use the gene name instead of the "
                        "transcript name.")
+argp.add_argument('--mergeTranscripts', action="store_true",
+                  help="Merge all transcripts into a single "
+                       "entry to have one line per gene.")
 args = argp.parse_args()
-convert_gtf_to_bed(args.input, args.output, args.useGene)
+convert_gtf_to_bed(args.input, args.output, args.useGene, args.mergeTranscripts)
