@@ -5,12 +5,12 @@
   </macros>
   <expand macro="requirements" />
   <expand macro="stdio" />
-  <command interpreter="python">
-    cooler_getMatrix.py --input $input --output $output $balance $header --r1 $r1 
+  <command detect_errors="exit_code"><![CDATA[
+    python '$__tool_directory__/cooler_getMatrix.py' --input $input --output $output $balance $header --r1 $r1 
     #if $differentRegions.difReg:
       --r2 $differentRegions.r2
     #end if
-  </command>
+  ]]></command>
   <inputs>
     <param name="input" multiple="false" type="data" format="cool" label="Select the input cool file."/>
     <param name="r1" type="text" label="The coordinates of a genomic region shown along the row dimension, in UCSC notation. (Example: chr1:10,000,000-11,000,000). If omitted, the entire contact matrix is printed."/>
