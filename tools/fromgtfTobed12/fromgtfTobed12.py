@@ -74,4 +74,5 @@ argp.add_argument('--mergeTranscripts', action="store_true",
                   help="Merge all transcripts into a single "
                        "entry to have one line per gene.")
 args = argp.parse_args()
-convert_gtf_to_bed(args.input, args.output, args.useGene, args.mergeTranscripts)
+convert_gtf_to_bed(args.input, args.output, args.useGene,
+                   args.mergeTranscripts)
