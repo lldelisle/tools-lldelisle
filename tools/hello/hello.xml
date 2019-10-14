@@ -1,0 +1,16 @@
+<tool id="hello" name="hello" version="0.01">
+  <description> World</description>
+  <command><![CDATA[
+    echo 'Hello Word! $mystring' > '$output1'
+  ]]></command>
+  <inputs>
+    <param name="mystring" type="text" label="Say something interesting"/>
+  </inputs>
+  <outputs>
+    <data format="tabular" name="output1" label="hello_world"/>
+  </outputs>
+  <help><![CDATA[
+    **What it does**
+    Says hello
+  ]]></help>
+</tool>
