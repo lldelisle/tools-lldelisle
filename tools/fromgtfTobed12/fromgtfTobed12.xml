@@ -1,4 +1,4 @@
-<tool id="fromgtfTobed12" name="fromgtftobed12" version="0.0.1">
+<tool id="fromgtfTobed12" name="fromgtftobed12" version="0.1.1">
   <description> Convert a gtf to a bed12.</description>
   <requirements>
     <requirement type="package" version="0.9">gffutils</requirement>
@@ -16,6 +16,7 @@
         python3 $__tool_directory__/fromgtfTobed12.py
         $useGene
         $mergeTranscripts
+        $ucscformat
         --output $output
         $input
 ]]>
@@ -24,6 +25,7 @@
     <param name="input" multiple="false" type="data" format="gtf" label="Select the gtf to convert."/>
     <param argument="--useGene" type="boolean" checked="False" truevalue="--useGene" falsevalue="" label="Uses the gene name instead of the transcript name."/>
     <param argument="--mergeTranscripts" type="boolean" checked="False" truevalue="--mergeTranscripts" falsevalue="" label="Merge all transcripts of a gene in a single line."/>
+    <param argument="--ucscformat" type="boolean" checked="True" truevalue="--ucscformat" falsevalue="" label="If you want that all chromosome names begin with 'chr'."/>
   </inputs>
   
   <outputs>
@@ -33,14 +35,22 @@
   <tests>
     <test>
       <param name="input" value="Homo_sapiens.GRCh38.95_491firstLines.gtf.gz"/>
+      <param name="ucscformat" value="--ucscformat"/>
       <output name="output" file="test.bed"/>
     </test>
     <test>
       <param name="input" value="Homo_sapiens.GRCh38.95_491firstLines.gtf.gz"/>
+      <param name="ucscformat" value="--ucscformat"/>
       <param name="useGene" value="--useGene"/>
       <output name="output" file="testWithGenes.bed"/>
     </test>
-  </tests>  
+    <test>
+      <param name="input" value="Homo_sapiens.GRCh38.95_491firstLines.gtf.gz"/>
+      <param name="mergeTranscripts" value="--mergeTranscripts"/>
+      <param name="useGene" value="--useGene"/>
+      <output name="output" file="testMergeNotUCSC.bed"/>
+    </test>
+  </tests>
   <help><![CDATA[
     This tool uses gffutils to convert gtf to bed12. One line per transcript.
     It will use as names transcript_name or gene_name when available.
