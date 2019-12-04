@@ -48,6 +48,7 @@
       <param name="input" value="Homo_sapiens.GRCh38.95_491firstLines.gtf.gz"/>
       <param name="mergeTranscripts" value="--mergeTranscripts"/>
       <param name="useGene" value="--useGene"/>
+      <param name="ucscformat" value=""/>
       <output name="output" file="testMergeNotUCSC.bed"/>
     </test>
   </tests>
