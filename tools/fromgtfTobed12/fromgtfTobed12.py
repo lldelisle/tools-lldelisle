@@ -58,7 +58,7 @@ def convert_gtf_to_bed(fn, fo, useGene, mergeTranscripts):
         exons_length = [len(e)
                         for e in
                         db.children(tr, featuretype='exon', order_by='start')]
-        fo.write("chr%s\t%d\t%d\t%s\t%d\t%s\t%d\t%d\t%s\t%d\t%s\t%s\n" %
+        fo.write("%s\t%d\t%d\t%s\t%d\t%s\t%d\t%d\t%s\t%d\t%s\t%s\n" %
                  (tr.chrom, tr.start - 1, tr.end, trName, 0, tr.strand,
                   cds_start, cds_end, "0", len(exons_starts),
                   ",".join([str(l) for l in exons_length]),
