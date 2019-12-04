@@ -17,6 +17,7 @@ def convert_gtf_to_bed(fn, fo, useGene, mergeTranscripts):
     for tr in all_items:
         # The name would be the name of the transcript/gene if exists
         try:
+            # First try to have it directly on the feature
             trName = tr.attributes[prefered_name][0]
         except KeyError:
             # Else try to guess the name of the transcript/gene from exons:
@@ -35,6 +36,9 @@ def convert_gtf_to_bed(fn, fo, useGene, mergeTranscripts):
         # bed are 0-based half-open so:
         # I need to remove one from each start
         try:
+            # In case of multiple CDS (when there is one entry per gene)
+            # I use the first one to get the start
+            # and the last one to get the end (order_by=-start)
             cds_start = next(db.children(tr,
                                          featuretype='CDS',
                                          order_by='start')).start - 1
@@ -42,16 +46,18 @@ def convert_gtf_to_bed(fn, fo, useGene, mergeTranscripts):
                                        featuretype='CDS',
                                        order_by='-start')).end
         except StopIteration:
+            # If the CDS is not defined, then it is set to the start
+            # as proposed here:
+            # https://genome.ucsc.edu/FAQ/FAQformat.html#format1
             cds_start = tr.start - 1
             cds_end = tr.start - 1
         # Get all exons starts and end to get lengths
         exons_starts = [e.start - 1
                         for e in
                         db.children(tr, featuretype='exon', order_by='start')]
-        exons_ends = [e.end
-                      for e in
-                      db.children(tr, featuretype='exon', order_by='start')]
-        exons_length = [e - s for s, e in zip(exons_starts, exons_ends)]
+        exons_length = [len(e)
+                        for e in
+                        db.children(tr, featuretype='exon', order_by='start')]
         fo.write("chr%s\t%d\t%d\t%s\t%d\t%s\t%d\t%d\t%s\t%d\t%s\t%s\n" %
                  (tr.chrom, tr.start - 1, tr.end, trName, 0, tr.strand,
                   cds_start, cds_end, "0", len(exons_starts),
@@ -61,7 +67,7 @@ def convert_gtf_to_bed(fn, fo, useGene, mergeTranscripts):
 
 argp = argparse.ArgumentParser(
   description=("Convert a gtf to a bed12 with one entry"
-               " per transcript"))
+               " per transcript/gene"))
 argp.add_argument('input', default=None,
                   help="Input gtf file (can be gzip).")
 argp.add_argument('--output', default=sys.stdout,
