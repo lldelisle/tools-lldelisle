@@ -4,7 +4,7 @@ import sys
 import gffutils
 
 
-def convert_gtf_to_bed(fn, fo, useGene, mergeTranscripts):
+def convert_gtf_to_bed(fn, fo, useGene, mergeTranscripts, ucsc):
     db = gffutils.create_db(fn, ':memory:')
     # For each transcript:
     prefered_name = "transcript_name"
@@ -58,8 +58,12 @@ def convert_gtf_to_bed(fn, fo, useGene, mergeTranscripts):
         exons_length = [len(e)
                         for e in
                         db.children(tr, featuretype='exon', order_by='start')]
+        # Rewrite the chromosome name if needed:
+        chrom = tr.chrom
+        if ucsc and chrom[0:3] != 'chr':
+            chrom = 'chr' + chrom
         fo.write("%s\t%d\t%d\t%s\t%d\t%s\t%d\t%d\t%s\t%d\t%s\t%s\n" %
-                 (tr.chrom, tr.start - 1, tr.end, trName, 0, tr.strand,
+                 (chrom, tr.start - 1, tr.end, trName, 0, tr.strand,
                   cds_start, cds_end, "0", len(exons_starts),
                   ",".join([str(l) for l in exons_length]),
                   ",".join([str(s - (tr.start - 1)) for s in exons_starts])))
@@ -79,6 +83,9 @@ argp.add_argument('--useGene', action="store_true",
 argp.add_argument('--mergeTranscripts', action="store_true",
                   help="Merge all transcripts into a single "
                        "entry to have one line per gene.")
+argp.add_argument('--ucscformat', action="store_true",
+                  help="If you want that all chromosome names "
+                       "begin with 'chr'.")
 args = argp.parse_args()
 convert_gtf_to_bed(args.input, args.output, args.useGene,
-                   args.mergeTranscripts)
+                   args.mergeTranscripts, args.ucscformat)
