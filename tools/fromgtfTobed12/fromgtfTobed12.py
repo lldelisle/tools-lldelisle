@@ -120,8 +120,8 @@ def convert_gtf_to_bed(fn, fo, useGene, mergeTranscripts,
 
 
 argp = argparse.ArgumentParser(
-  description=("Convert a gtf to a bed12 with one entry"
-               " per transcript/gene"))
+    description=("Convert a gtf to a bed12 with one entry"
+                 " per transcript/gene"))
 argp.add_argument('input', default=None,
                   help="Input gtf file (can be gzip).")
 argp.add_argument('--output', default=sys.stdout,
