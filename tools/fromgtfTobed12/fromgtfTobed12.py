@@ -1,8 +1,9 @@
 import argparse
 import sys
 
-import gffutils
 import warnings
+
+import gffutils
 
 warnings.filterwarnings("ignore", message="It appears you have a gene feature"
                         " in your GTF file. You may want to use the "
@@ -15,8 +16,8 @@ warnings.filterwarnings("ignore", message="It appears you have a transcript "
 # In gffutils v0.10 they changed the error message:
 warnings.filterwarnings("ignore", message="It appears you have a gene feature"
                         " in your GTF file. You may want to use the "
-                        "`disable_infer_genes=True` option to speed up database "
-                        "creation")
+                        "`disable_infer_genes=True` option to speed up "
+                        "database creation")
 warnings.filterwarnings("ignore", message="It appears you have a transcript "
                         "feature in your GTF file. You may want to use the "
                         "`disable_infer_transcripts=True` option to speed up "
