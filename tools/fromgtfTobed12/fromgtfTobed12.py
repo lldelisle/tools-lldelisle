@@ -4,13 +4,14 @@ import sys
 import gffutils
 
 
-def convert_gtf_to_bed(fn, fo, useGene, mergeTranscripts, ucsc):
+def convert_gtf_to_bed(fn, fo, useGene, mergeTranscripts,
+                       mergeTranscriptsAndOverlappingExons, ucsc):
     db = gffutils.create_db(fn, ':memory:')
     # For each transcript:
     prefered_name = "transcript_name"
-    if useGene:
+    if useGene or mergeTranscripts or mergeTranscriptsAndOverlappingExons:
         prefered_name = "gene_name"
-    if mergeTranscripts:
+    if mergeTranscripts or mergeTranscriptsAndOverlappingExons:
         all_items = db.features_of_type("gene", order_by='start')
     else:
         all_items = db.features_of_type("transcript", order_by='start')
@@ -51,13 +52,43 @@ def convert_gtf_to_bed(fn, fo, useGene, mergeTranscripts, ucsc):
             # https://genome.ucsc.edu/FAQ/FAQformat.html#format1
             cds_start = tr.start - 1
             cds_end = tr.start - 1
-        # Get all exons starts and end to get lengths
-        exons_starts = [e.start - 1
-                        for e in
-                        db.children(tr, featuretype='exon', order_by='start')]
-        exons_length = [len(e)
-                        for e in
-                        db.children(tr, featuretype='exon', order_by='start')]
+        # Get all exons starts and lengths
+        if mergeTranscriptsAndOverlappingExons:
+            # We merge overlapping exons:
+            exons_starts = []
+            exons_length = []
+            current_start = -1
+            current_end = None
+            for e in db.children(tr, featuretype='exon', order_by='start'):
+                if current_start == -1:
+                    current_start = e.start - 1
+                    current_end = e.end
+                else:
+                    if e.start > current_end:
+                        # This is a non-overlapping exon
+                        # We store the previous exon:
+                        exons_starts.append(current_start)
+                        exons_length.append(current_end - current_start)
+                        # We set the current:
+                        current_start = e.start - 1
+                        current_end = e.end
+                    else:
+                        # This is an overlapping exon
+                        # We update current_end if necessary
+                        current_end = max(current_end, e.end)
+            if current_start != -1:
+                # There is a last exon to store:
+                exons_starts.append(current_start)
+                exons_length.append(current_end - current_start)
+        else:
+            exons_starts = [e.start - 1
+                            for e in
+                            db.children(tr, featuretype='exon',
+                                        order_by='start')]
+            exons_length = [len(e)
+                            for e in
+                            db.children(tr, featuretype='exon',
+                                        order_by='start')]
         # Rewrite the chromosome name if needed:
         chrom = tr.chrom
         if ucsc and chrom[0:3] != 'chr':
@@ -80,12 +111,21 @@ argp.add_argument('--output', default=sys.stdout,
 argp.add_argument('--useGene', action="store_true",
                   help="Use the gene name instead of the "
                        "transcript name.")
-argp.add_argument('--mergeTranscripts', action="store_true",
-                  help="Merge all transcripts into a single "
-                       "entry to have one line per gene.")
 argp.add_argument('--ucscformat', action="store_true",
                   help="If you want that all chromosome names "
                        "begin with 'chr'.")
+group = argp.add_mutually_exclusive_group()
+group.add_argument('--mergeTranscripts', action="store_true",
+                   help="Merge all transcripts into a single "
+                        "entry to have one line per gene.")
+group.add_argument('--mergeTranscriptsAndOverlappingExons',
+                   action="store_true",
+                   help="Merge all transcripts into a single "
+                        "entry to have one line per gene and merge"
+                        " overlapping exons.")
+
 args = argp.parse_args()
 convert_gtf_to_bed(args.input, args.output, args.useGene,
-                   args.mergeTranscripts, args.ucscformat)
+                   args.mergeTranscripts,
+                   args.mergeTranscriptsAndOverlappingExons,
+                   args.ucscformat)

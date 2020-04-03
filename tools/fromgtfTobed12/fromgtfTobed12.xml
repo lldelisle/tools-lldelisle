@@ -24,7 +24,11 @@
   <inputs>
     <param name="input" multiple="false" type="data" format="gtf" label="Select the gtf to convert."/>
     <param argument="--useGene" type="boolean" checked="False" truevalue="--useGene" falsevalue="" label="Uses the gene name instead of the transcript name."/>
-    <param argument="--mergeTranscripts" type="boolean" checked="False" truevalue="--mergeTranscripts" falsevalue="" label="Merge all transcripts of a gene in a single line."/>
+    <param name="mergeTranscripts" type="select" label="Do you want to merge all transcripts of a gene in a single line?">
+      <option value="" selected="true">No</option>
+      <option value="--mergeTranscripts">Yes</option>
+      <option value="--mergeTranscriptsAndOverlappingExons">Yes and merge overlapping exons</option>
+    </param>
     <param argument="--ucscformat" type="boolean" checked="True" truevalue="--ucscformat" falsevalue="" label="If you want that all chromosome names begin with 'chr'."/>
   </inputs>
   
@@ -50,6 +54,13 @@
       <param name="useGene" value="--useGene"/>
       <param name="ucscformat" value=""/>
       <output name="output" file="testMergeNotUCSC.bed"/>
+    </test>
+    <test>
+      <param name="input" value="Homo_sapiens.GRCh38.95_491firstLines.gtf.gz"/>
+      <param name="mergeTranscripts" value="--mergeTranscriptsAndOverlappingExons"/>
+      <param name="useGene" value="--useGene"/>
+      <param name="ucscformat" value=""/>
+      <output name="output" file="testMergeExons.bed"/>
     </test>
   </tests>
   <help><![CDATA[
