@@ -1,6 +1,5 @@
 import argparse
 import sys
-
 import warnings
 
 import gffutils
