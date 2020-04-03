@@ -13,6 +13,7 @@ jobs:
       install:
         - pip install flake8 flake8-import-order planemo
         - planemo --version
+        - TRAVIS_COMMIT_RANGE=ab74facec16c01068c9bff1e80dd7b058e675daa...
         - git diff --quiet "$TRAVIS_COMMIT_RANGE" -- ; GIT_DIFF_EXIT_CODE=$?
         - |
           if [ "$GIT_DIFF_EXIT_CODE" -gt 1 ] ; then
@@ -56,6 +57,7 @@ install:
   # - conda install -y -c conda-forge conda=4.6.8
   - planemo --version
   # - conda --version
+  - TRAVIS_COMMIT_RANGE=ab74facec16c01068c9bff1e80dd7b058e675daa...
   - git diff --quiet "$TRAVIS_COMMIT_RANGE" -- ; GIT_DIFF_EXIT_CODE=$?
   - |
     if [ "$GIT_DIFF_EXIT_CODE" -gt 1 ] ; then
