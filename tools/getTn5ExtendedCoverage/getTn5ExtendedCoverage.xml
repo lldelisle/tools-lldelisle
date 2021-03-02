@@ -37,7 +37,7 @@
         <param name="job_name" type="text" label="Supply a name for the output to remind you what it contains." value="bedgraph of "/>
       </when>
       <when value="history">
-        <param name="history_name" type="data" label="Supply the input for the name of the output." multiple="false"/>
+        <param name="history_name" type="data" format="data" label="Supply the input for the name of the output." multiple="false" help="The output name will be 'bedgraph of {input}'"/>
       </when>
     </conditional>
   </inputs>
@@ -64,7 +64,7 @@
   *** Overview ***
   
   Python script which takes an input bam (indexed) and generate a bedgraph corresponding to a pile-up of region centered on the 5' of each read (taking into consideration the duplication made by Tn5) with an extension.
-  The bedgraph coverage is a python translation of bedtools bed to bedgraph genome coverage
+  The bedgraph coverage is a python translation of bedtools bed to bedgraph genome coverage, thus it is quite slow.
   </help>
 </tool>
                                                                 
