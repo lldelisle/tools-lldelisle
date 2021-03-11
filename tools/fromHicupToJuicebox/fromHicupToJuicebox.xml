@@ -1,7 +1,7 @@
-<tool id="fromHicupToJuicebox" name="fromHicupToJuicebox" version="0.0.1">
+<tool id="fromHicupToJuicebox" name="fromHicupToJuicebox" version="0.0.2">
   <description> Convert the output of hicup (as sam or bam) to the input of juicebox.</description>
   <requirements>
-    <requirement type="package" version="0.13.0">pysam</requirement>
+    <requirement type="package" version="0.16.0">pysam</requirement>
     <requirement type="package" version="1.9">samtools</requirement>
   </requirements>
   <stdio>
