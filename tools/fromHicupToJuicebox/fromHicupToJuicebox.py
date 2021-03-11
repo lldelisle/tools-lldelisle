@@ -97,7 +97,12 @@ def readSamFromHicupAndWriteOutputForJuicebox(in_samOrBam,
     pairOnGoing = False
     tmpDir = tempfile.mkdtemp()
     os.mkfifo(tmpDir+'bampipe')
-    command = 'samtools view -h '+in_samOrBam+' > '+tmpDir+'bampipe'
+    # With HiCUP v0.6.1
+    # The header is malformated:
+    # @PG     ID:HiCUP Filter VN:0.6.1        DS:"Max insert 0 Min insert 0 Digest file digester_file.txt"
+    # @PG     HiCUP Deduplicator      VN:0.6.1
+    # So we skip this line
+    command = 'samtools view -h '+in_samOrBam+' | grep -v "HiCUP Deduplicator" > '+tmpDir+'bampipe'
     subprocess.Popen(command, shell=True)
     with pysam.Samfile(tmpDir+'bampipe', 'r') as f:
         for read in f.fetch():
