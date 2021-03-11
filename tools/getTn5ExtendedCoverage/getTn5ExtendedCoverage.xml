@@ -1,7 +1,7 @@
-<tool id="getTn5ExtendedCoverage" name="getTn5ExtendedCoverage" version="0.0.1">
+<tool id="getTn5ExtendedCoverage" name="getTn5ExtendedCoverage" version="0.0.2">
   <description> Take an input bam from ATAC-seq and generate a bedgraph using the center of the Tn5 insertion with an extension.</description>
   <requirements>
-    <requirement type="package" version="0.13.0">pysam</requirement>
+    <requirement type="package" version="0.16.0">pysam</requirement>
   </requirements>
   <stdio>
     <!-- Anything other than zero is an error -->

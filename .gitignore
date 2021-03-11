@@ -3,3 +3,6 @@
 .directory
 */.vscode
 */*/.vscode
+# Output of planemo test:
+tool_test_output.html
+tool_test_output.json
