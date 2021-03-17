@@ -18,7 +18,7 @@
   </command>
   <inputs>
     <!-- note unsorted bam includes all derived bam types (inlcuding bam which is sorted) -->
-    <param name="input" multiple="false"  type="data" format="sam,bam" label="Select a sam or bam file."/>
+    <param name="input" type="data" format="sam,bam" label="Select a sam or bam file."/>
    </inputs>
   
   <outputs>

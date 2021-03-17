@@ -29,7 +29,7 @@
 ]]>
   </command>
   <inputs>
-    <param name="inputPairs" multiple="false"  type="data" format="sam,qname_sorted.bam" label="Select a file with the pairs as an alignment file (sam or bam). Both reads of a pair must be consecutive."/>
+    <param name="inputPairs" type="data" format="sam,qname_sorted.bam" label="Select a file with the pairs as an alignment file (sam or bam). Both reads of a pair must be consecutive."/>
     <param name="methodForFrag" type="select" label="Which method use to determine to which fragment belong a read." help="hicup is 10 bp downstream the most upstream coordinate. hiclib is 4 bases after the 5' if strand is + and 4 bases before if strand is -.">
       <option value="hicup">hicup</option>
       <option value="hiclib">hiclib</option>

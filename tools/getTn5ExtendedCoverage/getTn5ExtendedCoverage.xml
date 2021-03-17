@@ -24,7 +24,7 @@
 ]]>
   </command>
   <inputs>
-    <param name="input" multiple="false"  type="data" format="bam" label="Select one bam input files from your history."/>
+    <param name="input" type="data" format="bam" label="Select one bam input files from your history."/>
     <param name="length" type="integer" value="20" label="Put the length you want to extend of." help="If you put 0, the coverage will only use the 5' position of the read shifted. If you put 20, it is this position -20 to this position +20 which will be used.">
       <validator type="in_range" min="0" />
     </param>
