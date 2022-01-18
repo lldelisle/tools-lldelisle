@@ -1,0 +1,7 @@
+categories:
+   - Imaging
+description: Upload the ROI coordinates and the measurements to the omero server
+name: upload_roi_and_measures_to_omero
+owner: lldelisle
+long_description: Uses a python script to upload the ROI coordinates and the measurements to the omero server
+remote_repository_url: https://github.com/lldelisle/tools-lldelisle/tree/master/tools/upload_roi_and_measures_to_omero
