@@ -4,3 +4,4 @@ description: Get the ROI coordinates around the gastruloids as well as measureme
 name: measure_gastruloids
 owner: lldelisle
 long_description: Uses fiji to analyze an image to get the ROI coordinates around the gastruloids as well as measurements like Area, Perimeter...
+remote_repository_url: https://github.com/lldelisle/tools-lldelisle/tree/master/tools/measure_gastruloids
