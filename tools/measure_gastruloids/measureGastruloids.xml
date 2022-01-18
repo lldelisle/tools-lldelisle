@@ -1,7 +1,7 @@
 <tool id="measureGastruloids" name="measureGastruloids" version="@TOOL_VERSION@">
     <description> Use macro from Pierre Osteil to measure gastruloids.</description>
     <macros>
-        <token name="@TOOL_VERSION@">20220118</token>
+        <token name="@TOOL_VERSION@">20220119</token>
     </macros>
     <requirements>
         <requirement type="package" version="20170530">fiji</requirement>

@@ -6,7 +6,7 @@
 
 // Specify global variables
 
-tool_version = "20220118";
+tool_version = "20220119";
 
 parameter_string = getArgument();
 print(parameter_string);
@@ -88,7 +88,7 @@ function processImage(imageFile)
   	close();
   	selectWindow("temp2-rec");
   	run("Invert LUT");
-  	setAutoThreshold("Default dark");
+  	setAutoThreshold("MaxEntropy dark");
   	run("Convert to Mask");
   	run("Fill Holes");
 
