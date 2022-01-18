@@ -1,0 +1,6 @@
+categories:
+   - Imaging
+description: Get the ROI coordinates around the gastruloids as well as measurements like Area
+name: measure_gastruloids
+owner: lldelisle
+long_description: Uses fiji to analyze an image to get the ROI coordinates around the gastruloids as well as measurements like Area, Perimeter...
