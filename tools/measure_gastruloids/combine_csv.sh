@@ -4,8 +4,7 @@
 # output csv are in output
 # If there is no csv it will exit 1
 version=$1
-maxThreshold=$2
-output=$3
+output=$2
 
 nb_results_files=$(ls output | wc -l)
 if [[ $nb_results_files -eq 0 ]]; then
@@ -19,7 +18,7 @@ for img in input/*; do
     if [ -e $result_file ]; then
         tail -n +2 $result_file >> $output
     else
-        echo $header | awk -F ',' -v OFS="," -v label=$(basename $img) -v v=$version -v mt=$maxThreshold -v date=$(date +%Y-%m-%d_%H-%M) '
+        echo $header | awk -F ',' -v OFS="," -v label=$(basename $img) -v v=$version -v date=$(date +%Y-%m-%d_%H-%M) '
 {
     for (i=1;i<=NF;i++){
         if ($i == "Label"){
@@ -28,8 +27,6 @@ for img in input/*; do
             $i = date
         } else if ($i == "Version"){
             $i = v
-        } else if ($i == "MaxThreshold"){
-            $i = mt
         } else {
             $i=""
         }
