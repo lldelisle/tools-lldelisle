@@ -6,7 +6,7 @@
 
 // Specify global variables
 
-tool_version = "20220119";
+tool_version = "20220322";
 
 parameter_string = getArgument();
 print(parameter_string);
@@ -119,9 +119,6 @@ function processImage(imageFile)
         run("Dilate");
         run("Dilate");
         run("Fill Holes");
-        run("Erode");
-        run("Erode");
-        run("Erode");
         
         //Get the measurements
         run("Set Measurements...", "area feret's perimeter shape display redirect=None decimal=3");
