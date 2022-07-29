@@ -168,6 +168,10 @@ def processImage(File image, Float scale,
         imp.show()
     }
 
+    if (imp.getType() != ImagePlus.COLOR_RGB) {
+        IJ.run(imp, "RGB Color", "");
+    }
+
     imp.setRoi(0,0,255,255);
 
     def clrBlcd_imp = colorBalance(imp)
