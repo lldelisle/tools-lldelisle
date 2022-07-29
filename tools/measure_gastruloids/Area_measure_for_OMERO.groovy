@@ -254,19 +254,14 @@ def processImage(File image, Float scale,
         for (j in 0..(overlay.size()-1)){
             rm.addRoi(overlay.get(j))
         }
-        println rm.getCount()
     }
     
     // Get elongation index
-    println overlay.size()
     def overlay_copy = overlay.toArray()
-    println overlay_copy.size()
-    println overlay_copy
-    println overlay_copy.getClass().getName()
     pixelWidth = mask_ilastik_imp.getCalibration().pixelWidth
     println "Computing elongation index"
     for (i in 0..(overlay_copy.size()-1) ){
-        println i
+        println "ROI" + i
         current_roi = overlay_copy[i]
         mask_ilastik_imp.setRoi(current_roi);
         def ArrayList<Roi> circles = MaxInscribedCircles.findCircles(mask_ilastik_imp, minimum_diameter, true);
