@@ -1,11 +1,12 @@
 <tool id="measureGastruloids" name="measureGastruloids" version="@TOOL_VERSION@">
-    <description> Use macro from Pierre Osteil to measure gastruloids.</description>
+    <description> Use macro from BIOP/Pierre Osteil to measure gastruloids.</description>
     <macros>
-        <token name="@TOOL_VERSION@">20220322</token>
+        <token name="@TOOL_VERSION@">20220728</token>
     </macros>
     <requirements>
-        <requirement type="package" version="20170530">fiji</requirement>
-        <requirement type="package" version="1.5.0">fiji-morpholibj</requirement>
+        <requirement type="package" version="20220414">fiji</requirement>
+        <requirement type="package" version="1.1.0">fiji-max-inscribed-circles</requirement>
+        <requirement type="package" version="1.8.2">fiji-ilastik</requirement>
     </requirements>
     <stdio>
         <regex match="\[ERROR\]" source="stdout" level="fatal"/>
@@ -21,8 +22,9 @@
             #set identifier = re.sub('[^\s\w\-]', '_', str($file.element_identifier))
             ln -s '$file' input/${identifier}.${input_format.file_type} &&
         #end for
-        ImageJ --ij2 --headless --console -macro  '$__tool_directory__/'Area_measure_for_OMERO.ijm "`pwd`/input/,output/,.${input_format.file_type}" > output.log &&
-        bash '$__tool_directory__/'combine_csv.sh @TOOL_VERSION@ $summary_results
+        ImageJ-ilastik --ij2 --headless --console --run '$__tool_directory__/'Area_measure_for_OMERO.groovy 
+            'input_directory="input/",output_directory="output/",suffix="${input_format.file_type}",ilastik_project="${ilastik_project}",radius_GB="${radius_GB}",probability_threshold="${probability_threshold}",min_size_particle="${min_size_particle}",minimum_diameter="${minimum_diameter}",closeness_tolerance="${closeness_tolerance}",min_similarity="${min_similarity}",debug="${debug}"' > output.log &&
+        bash '$__tool_directory__/'combine_csv.sh @TOOL_VERSION@ $summary_results ".${input_format.file_type}"
         ]]>
     </command>
     <inputs>
@@ -42,6 +44,14 @@
                 <param name="input" multiple="true"  type="data" format="jpg" label="Select Images to analyse."/>
             </when>
         </conditional>
+        <param name="radius_GB" type="float" min="0" value="200" label="Radius of Gaussian Blur" />
+        <param name="ilastik_project" type="data" format="h5" label="Ilastik project" />
+        <param name="probability_threshold" type="float" min="0" max="1" value="0.4" label="Probability threshold for ilastik" />
+        <param name="min_size_particle" type="integer" min="0" value="5000" label="Minimum surface for Analyze Particle" />
+        <param name="minimum_diameter" type="integer" min="0" value="20" label="Minimum diameter of inscribed circles" />
+        <param name="closeness_tolerance" type="integer" min="0" value="5" label="Closeness Tolerance for the spine" help="Maximum distance between circles along the spine"/>
+        <param name="min_similarity" type="float" min="0" max="1" value="0.1" label="Min similarity for the spine" help="Close to 0 values allow more U shapes while close to 1 values only allows I shapes" />
+        <param name="debug" type="boolean" truevalue="true" falsevalue="false" checked="false" label="Debug the elongation index" help="This will output all inscribed circles" />
     </inputs>
 
     <outputs>

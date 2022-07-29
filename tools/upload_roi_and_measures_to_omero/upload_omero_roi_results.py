@@ -8,12 +8,13 @@ import numpy as np
 import tempfile
 import omero
 from omero.gateway import BlitzGateway
-from omero.rtypes import rstring
+from omero.rtypes import rstring, rdouble
 from omero.cmd import Delete2
 
 file_base_name_exportedTIFF = re.compile(r'^.*__(\d+)__0__0__\d+__\d+$')
 file_base_name_original = re.compile(r'^.*__(\d+)$')
 
+non_roi_value = -1
 
 def get_image_id(image_file_name):
     # Check the file name corresponds to the expected:
@@ -74,6 +75,8 @@ def upload(image_id, df, roi_files,
         img = conn.getObject('Image', image_id)
         # Create ROIs:
         roi_ids = []
+        # roi_big_circle_ids = []
+        # roi_spine_ids = []
         for i, ro_file in enumerate(roi_files):
             # Create a polygon
             my_poly = omero.model.PolygonI()
@@ -82,14 +85,71 @@ def upload(image_id, df, roi_files,
                 coos = f.readlines()
             coos_formatted = ', '.join([l.strip().replace('\t', ',') for l in coos])
             my_poly.setPoints(rstring(coos_formatted))
+            # Add a name
             my_poly.setTextValue(rstring('ROI' + str(i)))
+            # Create a omero ROI
             my_new_roi = omero.model.RoiI()
             my_new_roi.addShape(my_poly)
+            # Attach it to the image
             my_new_roi.setImage(img._obj)
             my_new_roi = updateService.saveAndReturnObject(my_new_roi)
             roi_ids.append(my_new_roi.getId().val)
             if verbose:
-                print(f"Created ROI {my_new_roi.getId().val}.")
+                print(f"Created ROI{i} {my_new_roi.getId().val}.")
+            # Check if there is an elongation ROI associated:
+            if os.path.exists(ro_file.replace("roi_coordinates", "elongation_rois")):
+                # Get the coordinates
+                with open(ro_file.replace("roi_coordinates", "elongation_rois"), 'r') as f:
+                    all_coos = f.readlines()
+                # Get the circles coos
+                circles_coos = [l for l in all_coos if len(l.split("\t")) == 3]
+                for j, circle_coo in enumerate(circles_coos):
+                    # Create an ellipse
+                    my_ellipse = omero.model.EllipseI()
+                    # Get the characteristics from text file
+                    xleft, ytop, width = [float(v) for v in circle_coo.strip().split("\t")]
+                    # Add it to the ellipse
+                    my_ellipse.setRadiusX(rdouble(width / 2.))
+                    my_ellipse.setRadiusY(rdouble(width / 2.))
+                    my_ellipse.setX(rdouble(xleft + width / 2))
+                    my_ellipse.setY(rdouble(ytop + width / 2))
+                    # Add a name
+                    my_ellipse.setTextValue(rstring('inscribedCircle' + str(i) + "_" + str(j)))
+                    # Create a omero ROI
+                    my_new_roi = omero.model.RoiI()
+                    my_new_roi.addShape(my_ellipse)
+                    # Attach it to the image
+                    my_new_roi.setImage(img._obj)
+                    my_new_roi = updateService.saveAndReturnObject(my_new_roi)
+                    if verbose:
+                        print(f"Created ROI inscribedCircle {i}_{j}: {my_new_roi.getId().val}.")
+                    # I store the id of the first circle:
+                    # if j == 0:
+                    #     roi_big_circle_ids.append(my_new_roi.getId().val)
+                if len(all_coos) > len(circles_coos):
+                    # Create a polyline for the spine
+                    my_poly = omero.model.PolylineI()
+                    coos_formatted = ', '.join([l.strip().replace('\t', ',') for l in all_coos[len(circles_coos):]])
+                    my_poly.setPoints(rstring(coos_formatted))
+                    # Add a name
+                    my_poly.setTextValue(rstring('spine' + str(i)))
+                    # Create a omero ROI
+                    my_new_roi = omero.model.RoiI()
+                    my_new_roi.addShape(my_poly)
+                    # Attach it to the image
+                    my_new_roi.setImage(img._obj)
+                    my_new_roi = updateService.saveAndReturnObject(my_new_roi)
+                    if verbose:
+                        print(f"Created ROI spine{i}: {my_new_roi.getId().val}.")
+                    # roi_spine_ids.append(my_new_roi.getId().val)
+                else:
+                    if verbose:
+                        print("No spine found")
+                    # roi_spine_ids.append(non_roi_value)
+            # else:
+            #     roi_big_circle_ids.append(non_roi_value)
+            #     roi_spine_ids.append(non_roi_value)
+
         # Create the table:
         table_name = "Results_from_Fiji"
         columns = []
@@ -102,6 +162,11 @@ def upload(image_id, df, roi_files,
         # From Claire's groovy: 
             # table_columns[size] = new TableDataColumn("Roi", size, ROIData)
         columns.append(omero.grid.RoiColumn('Roi', '', []))
+        # For the moment (20220729), the table support only one ROI column with link...
+        # if 'Elongation_index' in df.columns[1:]:
+        #     columns.append(omero.grid.RoiColumn('Roi_maxCircle', '', []))
+        #     columns.append(omero.grid.RoiColumn('Roi_Spine', '', []))
+        # columns.append(omero.grid.RoiColumn('Roi_main', '', []))
 
         resources = conn.c.sf.sharedResources()
         repository_id = resources.repositories().descriptions[0].getId().getValue()
@@ -115,10 +180,21 @@ def upload(image_id, df, roi_files,
             else:
                 data.append(omero.grid.DoubleColumn(col_name, '', df[col_name].to_list()))
         data.append(omero.grid.RoiColumn('Roi', '', roi_ids))
+        # if verbose:
+        #     print("Columns are " + " ".join(df.columns[1:]))
+        # if 'Elongation_index' in df.columns[1:]:
+        #     if verbose:
+        #         print("Adding 2 rois columns")
+        #         print(roi_ids)
+        #         print(roi_big_circle_ids)
+        #     data.append(omero.grid.RoiColumn('Roi_maxCircle', '', roi_big_circle_ids))
+        #     data.append(omero.grid.RoiColumn('Roi_Spine', '', roi_spine_ids))
+        # data.append(omero.grid.RoiColumn('Roi_main', '', roi_ids))
 
         table.addData(data)
         orig_file = table.getOriginalFile()
-        table.close()           # when we are done, close.
+        table.close()
+        # when we are done, close.
 
         # Load the table as an original file
 
@@ -140,7 +216,9 @@ def scan_and_upload(roi_directory, summary_results,
                     omero_username, omero_password,
                     omero_host='idr.openmicroscopy.org', omero_secured=False,
                     verbose=False):
+    # First get the summary results
     full_df = pd.read_csv(summary_results)
+    # Loop over the image names
     for image_file_name in np.unique(full_df['Label']):
         # Get the image_id
         image_id = get_image_id(image_file_name)
@@ -150,7 +228,7 @@ def scan_and_upload(roi_directory, summary_results,
               omero_username, omero_password,
               omero_host, omero_secured,
               verbose)
-        # Subset the result
+        # Subset the result to the current image
         df = full_df[full_df['Label'] == image_file_name]
         if np.isnan(df['Area'].to_list()[0]):
             # No ROI has been detected
@@ -162,7 +240,7 @@ def scan_and_upload(roi_directory, summary_results,
             print(f"I found {n_rois} measurements.")
         # Check the corresponding rois exists
         roi_files = [os.path.join(roi_directory,
-                                  image_file_name.replace('.tiff', '_tiff__') + str(i) + '_roi_coordinates.txt')
+                                  image_file_name.replace('.tiff', '_tiff') + '__' + str(i) + '_roi_coordinates.txt')
                      for i in range(n_rois)]
         for ro_file in roi_files:
             if not os.path.exists(ro_file):
