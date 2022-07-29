@@ -365,7 +365,7 @@ def String tool_version = "20220728"
 #@ String(visibility=MESSAGE, value="Parameters for elongation index", required=false) msg3
 #@ Integer(label="Minimum diameter of inscribed circles", min=0, value=20) minimum_diameter
 #@ Integer(label="Closeness Tolerance (Spine)", min=0, value=5) closeness_tolerance
-#@ Float(label="Min similarity (Spine)", min=0, max=0, value=0.1) min_similarity
+#@ Float(label="Min similarity (Spine)", min=0, max=1, value=0.1) min_similarity
 
 #@ String(visibility=MESSAGE, value="Parameters for output", required=false) msg4
 #@ File(style = "directory", label="Directory where measures are put") output_directory
