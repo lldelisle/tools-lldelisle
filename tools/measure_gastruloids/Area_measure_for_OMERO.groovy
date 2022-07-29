@@ -271,66 +271,77 @@ def processImage(File image, Float scale,
         mask_ilastik_imp.setRoi(current_roi);
         def ArrayList<Roi> circles = MaxInscribedCircles.findCircles(mask_ilastik_imp, minimum_diameter, true);
         println "Inscribed " + circles.size() + " circles."
-        // get the first roi (largest circle)
-        circle_roi = circles.get(0)
-        circle_roi_radius = circle_roi.getStatistics().width / 2
-        rt.setValue("Largest_Radius", i, circle_roi_radius * pixelWidth)
-        if (headless_mode) {
-            File file_elong = new File(output_directory.toString() + "/" + image_basename + "__" + i + "_elongation_rois.txt")
-            if (debug) {
-                // First put all circles characteristics:
-                for (Roi circle in circles) {
-                    width = circle.getStatistics().width
-                    x = circle.getStatistics().xCentroid - width / 2
-                    y = circle.getStatistics().yCentroid - width / 2
-                    file_elong.append(x + "\t" + y + "\t" + width + "\n")
-                }
-            } else {
-                // First put the largest circle characteristics:
-                x = circle_roi.getStatistics().xCentroid - circle_roi_radius
-                y = circle_roi.getStatistics().yCentroid - circle_roi_radius
-                file_elong.append(x + "\t" + y + "\t" + 2 * circle_roi_radius + "\n")
-            }
-        } else {
-            def rm = new RoiManager()
-            rm = rm.getRoiManager()
-            if (debug) {
-                for (Roi circle in circles) {
-                    rm.addRoi(circle);
-                }
-            } else {
-                rm.addRoi(circle_roi);
-            }
-        }
-        if (circles.size() > 1) {
-            circles_copy = circles.clone()
-            CirlcesBasedSpine sbp = new CirlcesBasedSpine$Settings(imp)
-            .closenessTolerance(closeness_tolerance)
-            .minSimilarity(min_similarity)
-            .showCircles(false)
-            .circles(circles_copy)
-            .build();
-            try {
-                def PolygonRoi spine = sbp.getSpine();
-                line_roi_length = spine.getLength()
-                rt.setValue("Spine_length", i, line_roi_length * pixelWidth)
-                rt.setValue("Elongation_index", i, line_roi_length / (2*circle_roi_radius))
-                if (headless_mode) {
-                    File file_elong = new File(output_directory.toString() + "/" + image_basename + "__" + i + "_elongation_rois.txt")
-                    // Then the spine coordinates
-                    x = spine.getPolygon().xpoints
-                    y = spine.getPolygon().ypoints
-                    x.eachWithIndex { current_x, index ->
-                        file_elong.append(current_x + "\t" + y[index] + "\n");
+        if (circles.size() > 0){
+            // get the first roi (largest circle)
+            circle_roi = circles.get(0)
+            circle_roi_radius = circle_roi.getStatistics().width / 2
+            rt.setValue("Largest_Radius", i, circle_roi_radius * pixelWidth)
+            if (headless_mode) {
+                File file_elong = new File(output_directory.toString() + "/" + image_basename + "__" + i + "_elongation_rois.txt")
+                if (debug) {
+                    // First put all circles characteristics:
+                    for (Roi circle in circles) {
+                        width = circle.getStatistics().width
+                        x = circle.getStatistics().xCentroid - width / 2
+                        y = circle.getStatistics().yCentroid - width / 2
+                        file_elong.append(x + "\t" + y + "\t" + width + "\n")
                     }
                 } else {
-                    def rm = new RoiManager()
-                    rm = rm.getRoiManager()
-                    rm.addRoi(spine);
+                    // First put the largest circle characteristics:
+                    x = circle_roi.getStatistics().xCentroid - circle_roi_radius
+                    y = circle_roi.getStatistics().yCentroid - circle_roi_radius
+                    file_elong.append(x + "\t" + y + "\t" + 2 * circle_roi_radius + "\n")
                 }
-            } catch(Exception e) {
-                println("Could not create spine: ${e}")
+            } else {
+                def rm = new RoiManager()
+                rm = rm.getRoiManager()
+                if (debug) {
+                    for (Roi circle in circles) {
+                        rm.addRoi(circle);
+                    }
+                } else {
+                    rm.addRoi(circle_roi);
+                }
             }
+            if (circles.size() > 1) {
+                circles_copy = circles.clone()
+                CirlcesBasedSpine sbp = new CirlcesBasedSpine$Settings(imp)
+                .closenessTolerance(closeness_tolerance)
+                .minSimilarity(min_similarity)
+                .showCircles(false)
+                .circles(circles_copy)
+                .build();
+                try {
+                    def PolygonRoi spine = sbp.getSpine();
+                    line_roi_length = spine.getLength()
+                    rt.setValue("Spine_length", i, line_roi_length * pixelWidth)
+                    rt.setValue("Elongation_index", i, line_roi_length / (2*circle_roi_radius))
+                    if (headless_mode) {
+                        File file_elong = new File(output_directory.toString() + "/" + image_basename + "__" + i + "_elongation_rois.txt")
+                        // Then the spine coordinates
+                        x = spine.getPolygon().xpoints
+                        y = spine.getPolygon().ypoints
+                        x.eachWithIndex { current_x, index ->
+                            file_elong.append(current_x + "\t" + y[index] + "\n");
+                        }
+                    } else {
+                        def rm = new RoiManager()
+                        rm = rm.getRoiManager()
+                        rm.addRoi(spine);
+                    }
+                } catch(Exception e) {
+                    println("Could not create spine: ${e}")
+                    rt.setValue("Spine_length", i, 0)
+                    rt.setValue("Elongation_index", i, 0)
+                }
+            } else {
+                rt.setValue("Spine_length", i, 0)
+                rt.setValue("Elongation_index", i, 0)
+            }
+        } else {
+            rt.setValue("Largest_Radius", i, 0)
+            rt.setValue("Spine_length", i, 0)
+            rt.setValue("Elongation_index", i, 0)
         }
     }
     println "Writting measurements to file";
