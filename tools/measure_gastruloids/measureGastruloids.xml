@@ -1,4 +1,4 @@
-<tool id="measureGastruloids" name="measureGastruloids" version="@TOOL_VERSION@+galaxy1">
+<tool id="measureGastruloids" name="measureGastruloids" version="@TOOL_VERSION@+galaxy2">
     <description> Use macro from BIOP/Pierre Osteil to measure gastruloids.</description>
     <macros>
         <token name="@TOOL_VERSION@">20220812</token>
@@ -500,7 +500,7 @@ This is a ImageJ groovy::
                             rm.addRoi(spine)
                         }
                     } catch(Exception e) {
-                        println("Could not create spine: ${e}")
+                        println("Could not create spine")
                         rt.setValue("Spine_length", i, 0)
                         rt.setValue("Elongation_index", i, 0)
                     }
