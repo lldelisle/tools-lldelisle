@@ -33,7 +33,7 @@ import ij.plugin.frame.*
 import ij.plugin.filter.GaussianBlur
 import ij.plugin.filter.ParticleAnalyzer
 
-import java.awt.*;
+import java.awt.*
 
 import org.ilastik.ilastik4ij.ui.* 
 
@@ -44,11 +44,11 @@ import net.imglib2.img.display.imagej.ImageJFunctions
 import java.awt.GraphicsEnvironment
 
 // For the elongation index:
-import ch.epfl.biop.MaxInscribedCircles;
-import ch.epfl.biop.CirlcesBasedSpine;
-import ch.epfl.biop.CirlcesBasedSpine$Settings;
+import ch.epfl.biop.MaxInscribedCircles
+import ch.epfl.biop.CirclesBasedSpine
+import ch.epfl.biop.CirclesBasedSpine$Settings
 
-import ij.plugin.frame.RoiManager;
+import ij.plugin.frame.RoiManager
 
 /**
  * Color balance , modified from beanshell by BIOP
@@ -127,7 +127,7 @@ def processDirectory(File input_directory, String suffix, Float scale,
                      Integer minimum_diameter, Integer closeness_tolerance, Float min_similarity,
                      File output_directory,
                      Boolean headless_mode, Boolean debug, String tool_version) {
-    def file_list = input_directory.listFiles()
+    File[] file_list = input_directory.listFiles()
     for (int i = 0; i < file_list.length; i++) {
         println file_list[i]
         if (file_list[i].isDirectory()) {
@@ -159,41 +159,41 @@ def processImage(File image, Float scale,
     IJ.run("Close All", "")
     IJ.run("Clear Results")
 
-    def image_name = image.getName();
-    def image_basename = FilenameUtils.getBaseName( image_name );
-    println "Processing " + image_basename;
+    String image_name = image.getName()
+    String image_basename = FilenameUtils.getBaseName( image_name )
+    println "Processing " + image_basename
 
-    def imp = IJ.openImage( image.toString() );
+    ImagePlus imp = IJ.openImage( image.toString() )
     if (!headless_mode) {
         imp.show()
     }
 
     if (imp.getType() != ImagePlus.COLOR_RGB) {
-        IJ.run(imp, "RGB Color", "");
+        IJ.run(imp, "RGB Color", "")
     }
 
-    imp.setRoi(0,0,255,255);
+    imp.setRoi(0,0,255,255)
 
-    def clrBlcd_imp = colorBalance(imp)
-    println "Color balance done !";
+    ImagePlus clrBlcd_imp = colorBalance(imp)
+    println "Color balance done !"
     // make RGB to grey
     IJ.run(clrBlcd_imp, "16-bit", "")
 
-    gb_imp = clrBlcd_imp.duplicate()
+    ImagePlus gb_imp = clrBlcd_imp.duplicate()
     gb_imp.setTitle("GB")
 
 
-    def gb = new GaussianBlur()
+    GaussianBlur gb = new GaussianBlur()
     gb.blur( gb_imp.getProcessor() , radius_GB)
 
-    def ff_imp = ImageCalculator.run(clrBlcd_imp, gb_imp, "Divide create 32-bit");
+    ImagePlus ff_imp = ImageCalculator.run(clrBlcd_imp, gb_imp, "Divide create 32-bit")
     ff_imp.setTitle(image_basename+"_FF_CB")
 
     if (!headless_mode) {
         ff_imp.show()
     }
 
-    println "Starting ilastik";
+    println "Starting ilastik"
 
     // can't work without displaying image
     // IJ.run("Run Pixel Classification Prediction", "projectfilename="+ilastik_project+" inputimage="+ff_imp.getTitle()+" pixelclassificationtype=Probabilities");
@@ -204,9 +204,9 @@ def processImage(File image, Float scale,
                                     'projectFileName', ilastik_project , 
                                     'pixelClassificationType', "Probabilities").get().getOutput("predictions")                         
     // to convert the result to ImagePlus : https://gist.github.com/GenevieveBuckley/460d0abc7c1b13eee983187b955330ba
-    predictions_imp = ImageJFunctions.wrap(predictions_imgPlus, "predictions") 
+    ImagePlus predictions_imp = ImageJFunctions.wrap(predictions_imgPlus, "predictions") 
 
-    println "Ilastik done !";
+    println "Ilastik done !"
 
     predictions_imp.setTitle("ilastik_output")
 
@@ -214,22 +214,21 @@ def processImage(File image, Float scale,
         predictions_imp.show()
     }
 
-    mask_ilastik_imp = new Duplicator().run(predictions_imp, 1, 1, 1, 1, 1, 1);
+    ImagePlus mask_ilastik_imp = new Duplicator().run(predictions_imp, 1, 1, 1, 1, 1, 1)
     // This title will appear in the result table
     mask_ilastik_imp.setTitle(image_basename)
-    IJ.setThreshold(mask_ilastik_imp, probability_threshold, 1000000000000000000000000000000.0000);
-    Prefs.blackBackground = true;
-    IJ.run(mask_ilastik_imp, "Convert to Mask", "");
+    IJ.setThreshold(mask_ilastik_imp, probability_threshold, 1000000000000000000000000000000.0000)
+    Prefs.blackBackground = true
+    IJ.run(mask_ilastik_imp, "Convert to Mask", "")
 
-    IJ.run(mask_ilastik_imp, "Options...", "iterations=10 count=3 black do=Open");
-    IJ.run(mask_ilastik_imp, "Fill Holes", "");
+    IJ.run(mask_ilastik_imp, "Options...", "iterations=10 count=3 black do=Open")
+    IJ.run(mask_ilastik_imp, "Fill Holes", "")
 
-    IJ.run("Set Measurements...", "area feret's perimeter shape display redirect=None decimal=3");
-    IJ.run("Set Scale...", "distance=1 known="+scale+" unit=micron");
-    // mask_ilastik_imp.show()
-    IJ.run(mask_ilastik_imp, "Analyze Particles...", "size="+ min_size_particle + "-Infinity exclude show=Overlay");
+    IJ.run("Set Measurements...", "area feret's perimeter shape display redirect=None decimal=3")
+    IJ.run("Set Scale...", "distance=1 known="+scale+" unit=micron")
+    IJ.run(mask_ilastik_imp, "Analyze Particles...", "size="+ min_size_particle + "-Infinity exclude show=Overlay")
     
-    println "Found " + rt.size() + " ROI";
+    println "Found " + rt.size() + " ROI"
     
     // Get Date
     Date date = new Date()
@@ -241,19 +240,19 @@ def processImage(File image, Float scale,
         rt.setValue("Version", row, tool_version)
     }
 
-    def overlay = mask_ilastik_imp.getOverlay()
+    Overlay overlay = mask_ilastik_imp.getOverlay()
     if (headless_mode) {
-        println "Writting ROI to files";
+        println "Writting ROI to files"
         ( 0..overlay.size()-1 ).collect{
             File file = new File(output_directory.toString() + "/" + image_basename + "__" + it + "_roi_coordinates.txt")
             for (Point p : overlay.get(it)) {
-                file.append(p.x + "\t" + p.y + "\n");
+                file.append(p.x + "\t" + p.y + "\n")
             }
         }
 
     } else {
         mask_ilastik_imp.show()
-        def rm = new RoiManager()
+        rm = new RoiManager()
         rm = rm.getRoiManager()
         for (j in 0..(overlay.size()-1)){
             rm.addRoi(overlay.get(j))
@@ -261,22 +260,25 @@ def processImage(File image, Float scale,
     }
     
     // Get elongation index
-    def overlay_copy = overlay.toArray()
-    pixelWidth = mask_ilastik_imp.getCalibration().pixelWidth
+    Roi[] overlay_copy = overlay.toArray()
+    double pixelWidth = mask_ilastik_imp.getCalibration().pixelWidth
     println "Computing elongation index"
+    File file_elong
     for (i in 0..(overlay_copy.size()-1) ){
         println "ROI" + i
-        current_roi = overlay_copy[i]
-        mask_ilastik_imp.setRoi(current_roi);
-        def ArrayList<Roi> circles = MaxInscribedCircles.findCircles(mask_ilastik_imp, minimum_diameter, true);
+        Roi current_roi = overlay_copy[i]
+        mask_ilastik_imp.setRoi(current_roi)
+        ArrayList<Roi> circles = MaxInscribedCircles.findCircles(mask_ilastik_imp, minimum_diameter, true)
         println "Inscribed " + circles.size() + " circles."
+        double x
+        double y
         if (circles.size() > 0){
             // get the first roi (largest circle)
-            circle_roi = circles.get(0)
-            circle_roi_radius = circle_roi.getStatistics().width / 2
+            Roi circle_roi = circles.get(0)
+            double circle_roi_radius = circle_roi.getStatistics().width / 2
             rt.setValue("Largest_Radius", i, circle_roi_radius * pixelWidth)
             if (headless_mode) {
-                File file_elong = new File(output_directory.toString() + "/" + image_basename + "__" + i + "_elongation_rois.txt")
+                file_elong = new File(output_directory.toString() + "/" + image_basename + "__" + i + "_elongation_rois.txt")
                 if (debug) {
                     // First put all circles characteristics:
                     for (Roi circle in circles) {
@@ -292,41 +294,36 @@ def processImage(File image, Float scale,
                     file_elong.append(x + "\t" + y + "\t" + 2 * circle_roi_radius + "\n")
                 }
             } else {
-                def rm = new RoiManager()
-                rm = rm.getRoiManager()
                 if (debug) {
                     for (Roi circle in circles) {
-                        rm.addRoi(circle);
+                        rm.addRoi(circle)
                     }
                 } else {
-                    rm.addRoi(circle_roi);
+                    rm.addRoi(circle_roi)
                 }
             }
             if (circles.size() > 1) {
                 circles_copy = circles.clone()
-                CirlcesBasedSpine sbp = new CirlcesBasedSpine$Settings(imp)
+                CirclesBasedSpine sbp = new CirclesBasedSpine$Settings(mask_ilastik_imp)
                 .closenessTolerance(closeness_tolerance)
                 .minSimilarity(min_similarity)
                 .showCircles(false)
                 .circles(circles_copy)
-                .build();
+                .build()
                 try {
-                    def PolygonRoi spine = sbp.getSpine();
-                    line_roi_length = spine.getLength()
+                    def PolygonRoi spine = sbp.getSpine()
+                    double line_roi_length = spine.getLength()
                     rt.setValue("Spine_length", i, line_roi_length * pixelWidth)
                     rt.setValue("Elongation_index", i, line_roi_length / (2*circle_roi_radius))
                     if (headless_mode) {
-                        File file_elong = new File(output_directory.toString() + "/" + image_basename + "__" + i + "_elongation_rois.txt")
                         // Then the spine coordinates
-                        x = spine.getPolygon().xpoints
-                        y = spine.getPolygon().ypoints
-                        x.eachWithIndex { current_x, index ->
-                            file_elong.append(current_x + "\t" + y[index] + "\n");
+                        double[] all_x = spine.getPolygon().xpoints
+                        double[] all_y = spine.getPolygon().ypoints
+                        all_x.eachWithIndex { current_x, index ->
+                            file_elong.append(current_x + "\t" + all_y[index] + "\n")
                         }
                     } else {
-                        def rm = new RoiManager()
-                        rm = rm.getRoiManager()
-                        rm.addRoi(spine);
+                        rm.addRoi(spine)
                     }
                 } catch(Exception e) {
                     println("Could not create spine: ${e}")
@@ -343,14 +340,14 @@ def processImage(File image, Float scale,
             rt.setValue("Elongation_index", i, 0)
         }
     }
-    println "Writting measurements to file";
+    println "Writting measurements to file"
     rt.save(output_directory.toString() + '/' + image_basename+"__Results.csv" )
 
 }
 
 // Specify global variables
 
-def String tool_version = "20220728"
+String tool_version = "20220812"
 
 // User set variables
 
@@ -369,7 +366,7 @@ def String tool_version = "20220728"
 #@ String(visibility=MESSAGE, value="Parameters for elongation index", required=false) msg3
 #@ Integer(label="Minimum diameter of inscribed circles", min=0, value=20) minimum_diameter
 #@ Integer(label="Closeness Tolerance (Spine)", min=0, value=5) closeness_tolerance
-#@ Float(label="Min similarity (Spine)", min=0, max=1, value=0.1) min_similarity
+#@ Float(label="Min similarity (Spine)", min=-1, max=1, value=0.1) min_similarity
 
 #@ String(visibility=MESSAGE, value="Parameters for output", required=false) msg4
 #@ File(style = "directory", label="Directory where measures are put") output_directory
@@ -382,10 +379,12 @@ def String tool_version = "20220728"
 #@ DatasetIOService io
 
 // java.awt.GraphicsEnvironment.checkheadless_mode(GraphicsEnvironment.java:204)
-def Boolean headless_mode = GraphicsEnvironment.isHeadless()
+Boolean headless_mode = GraphicsEnvironment.isHeadless()
+
+def rm
 
 if (!headless_mode){
-    def rm = new RoiManager()
+    rm = new RoiManager()
     rm = rm.getRoiManager()
     rm.reset()
 }
