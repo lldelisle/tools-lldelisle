@@ -66,37 +66,96 @@
     </outputs>
     <tests>
         <test expect_num_outputs="3">
-            <!--TODO: auto-generated test case. Please fill in the required values-->
+            <!--1-->
             <conditional name="input_format">
                 <param name="file_type" value="tiff"/>
-                <param name="input" value="test.tiff,test_original.tif"/>
+                <param name="input" value="test_Black.tif,test_color.tif" ftype="tiff"/>
             </conditional>
+            <param name="ilastik_project" value="MyProject_3.ilp" ftype="h5"/>
             <output name="logfile">
                 <assert_contents>
-                    <has_text text="Label"/>
-                    <has_text text="Solidity"/>
-                    <has_text text="nRes:0"/>
-                    <has_text text="nRes:1"/>
+                    <has_text text="Ilastik done"/>
+                    <has_text text="Found 1 ROI"/>
+                    <has_text text="Inscribed 35 circles."/>
+                    <has_text text="Inscribed 60 circles."/>
                 </assert_contents>
             </output>
             <output_collection name="ROI" type="list">
-                <element name="test_tiff.tiff__0_roi_coordinates">
-                    <assert_contents>
-                        <has_n_columns n="2"/>
-                        <has_size value="23670" delta="10"/>
-                    </assert_contents>
-                </element>
-                <element name="test_original_tif.tiff__0_roi_coordinates">
-                    <assert_contents>
-                        <has_n_columns n="2"/>
-                        <has_size value="38202" delta="10"/>
-                    </assert_contents>
-                </element>
+                <element name="test_Black_tif__0_elongation_rois" file="test_Black_tif__0_elongation_rois.txt" ftype="tabular" />
+                <element name="test_Black_tif__0_roi_coordinates" file="test_Black_tif__0_roi_coordinates.txt" ftype="tabular" />
+                <element name="test_color_tif__0_elongation_rois" file="test_color_tif__0_elongation_rois.txt" ftype="tabular" />
+                <element name="test_color_tif__0_roi_coordinates" file="test_color_tif__0_roi_coordinates.txt" ftype="tabular" />
             </output_collection>
             <output name="summary_results">
                 <assert_contents>
-                    <has_line line=",Label,Area,Perim.,Circ.,Feret,FeretX,FeretY,FeretAngle,MinFeret,AR,Round,Solidity,Date,Version"/>
-                    <has_size value="479" delta="10"/>
+                    <has_line line=",Label,Area,Perim.,Circ.,Feret,FeretX,FeretY,FeretAngle,MinFeret,AR,Round,Solidity,Date,Version,Largest_Radius,Spine_length,Elongation_index"/>
+                    <has_text text="1,test_Black_tif,389993,4449.445,0.248,1035.773,590,1095,50.917,824.915,1.336,0.748,0.665,"/>
+                    <has_text text=",20220812,178.500,1098.576,3.077"/>
+                    <has_text text="1,test_color_tif,243912,2366.934,0.547,842.257,395,923,176.869,452.391,2.184,0.458,0.846,"/>
+                    <has_text text=",20220812,179,961.284,2.685"/>
+                </assert_contents>
+            </output>
+        </test>
+        <test expect_num_outputs="3">
+            <!--2 debug-->
+            <conditional name="input_format">
+                <param name="file_type" value="tiff"/>
+                <param name="input" value="test_Black.tif,test_color.tif" ftype="tiff"/>
+            </conditional>
+            <param name="ilastik_project" value="MyProject_3.ilp" ftype="h5"/>
+            <param name="debug" value="true"/>
+            <output name="logfile">
+                <assert_contents>
+                    <has_text text="Ilastik done"/>
+                    <has_text text="Found 1 ROI"/>
+                    <has_text text="Inscribed 35 circles."/>
+                    <has_text text="Inscribed 60 circles."/>
+                </assert_contents>
+            </output>
+            <output_collection name="ROI" type="list">
+                <element name="test_Black_tif__0_elongation_rois" file="test_Black_tif__0_elongation_rois_debug.txt" ftype="tabular" />
+                <element name="test_Black_tif__0_roi_coordinates" file="test_Black_tif__0_roi_coordinates.txt" ftype="tabular" />
+                <element name="test_color_tif__0_elongation_rois" file="test_color_tif__0_elongation_rois_debug.txt" ftype="tabular" />
+                <element name="test_color_tif__0_roi_coordinates" file="test_color_tif__0_roi_coordinates.txt" ftype="tabular" />
+            </output_collection>
+            <output name="summary_results">
+                <assert_contents>
+                    <has_line line=",Label,Area,Perim.,Circ.,Feret,FeretX,FeretY,FeretAngle,MinFeret,AR,Round,Solidity,Date,Version,Largest_Radius,Spine_length,Elongation_index"/>
+                    <has_text text="1,test_Black_tif,389993,4449.445,0.248,1035.773,590,1095,50.917,824.915,1.336,0.748,0.665,"/>
+                    <has_text text=",20220812,178.500,1098.576,3.077"/>
+                    <has_text text="1,test_color_tif,243912,2366.934,0.547,842.257,395,923,176.869,452.391,2.184,0.458,0.846,"/>
+                    <has_text text=",20220812,179,961.284,2.685"/>
+                </assert_contents>
+            </output>
+        </test>
+        <test expect_num_outputs="3">
+            <!--3 large minimum_diameter-->
+            <conditional name="input_format">
+                <param name="file_type" value="tiff"/>
+                <param name="input" value="test_Black.tif,test_color.tif" ftype="tiff"/>
+            </conditional>
+            <param name="ilastik_project" value="MyProject_3.ilp" ftype="h5"/>
+            <param name="minimum_diameter" value="200"/>
+            <output name="logfile">
+                <assert_contents>
+                    <has_text text="Ilastik done"/>
+                    <has_text text="Found 1 ROI"/>
+                    <has_text text="Inscribed 2 circles."/>
+                    <has_text text="No Adjacent Circles"/>
+                </assert_contents>
+            </output>
+            <output_collection name="ROI" type="list">
+                <element name="test_Black_tif__0_elongation_rois" file="test_Black_tif__0_elongation_rois_200.txt" ftype="tabular" />
+                <element name="test_Black_tif__0_roi_coordinates" file="test_Black_tif__0_roi_coordinates.txt" ftype="tabular" />
+                <element name="test_color_tif__0_roi_coordinates" file="test_color_tif__0_roi_coordinates.txt" ftype="tabular" />
+            </output_collection>
+            <output name="summary_results">
+                <assert_contents>
+                    <has_line line=",Label,Area,Perim.,Circ.,Feret,FeretX,FeretY,FeretAngle,MinFeret,AR,Round,Solidity,Date,Version,Largest_Radius,Spine_length,Elongation_index"/>
+                    <has_text text="1,test_Black_tif,389993,4449.445,0.248,1035.773,590,1095,50.917,824.915,1.336,0.748,0.665,"/>
+                    <has_text text=",20220812,178.500,964.351,2.701"/>
+                    <has_text text="1,test_color_tif,243912,2366.934,0.547,842.257,395,923,176.869,452.391,2.184,0.458,0.846,"/>
+                    <has_text text=",20220812,179,0,0"/>
                 </assert_contents>
             </output>
         </test>
@@ -105,7 +164,9 @@
     <![CDATA[
 **Overview**
 
-This tool will make 16bits image and use threshold and analyseParticle to measure Gastruloids.
+This tool will use an ilastik project to get propability and generate a mask.
+The potential gastruloids will be indentified by analyze Particles.
+On each ROI, the elongation index will be computed.
 
 **Script**
 
