@@ -1,7 +1,7 @@
 categories:
    - Imaging
-description: Get the ROI coordinates around the gastruloids as well as measurements like Area
+description: Get the ROI coordinates around the gastruloids as well as measurements like Area, elongation index
 name: measure_gastruloids
 owner: lldelisle
-long_description: Uses fiji to analyze an image to get the ROI coordinates around the gastruloids as well as measurements like Area, Perimeter...
+long_description: Uses fiji to analyze an image to get the ROI coordinates around the gastruloids as well as measurements like Area, Perimeter, elongation index... To use this tool, you need to set ilastik-forge and pytorch as `conda_ensure_channels`.
 remote_repository_url: https://github.com/lldelisle/tools-lldelisle/tree/master/tools/measure_gastruloids
