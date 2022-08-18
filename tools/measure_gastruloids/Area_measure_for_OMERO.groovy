@@ -395,12 +395,22 @@ if (!headless_mode){
 
 println "Results will be in " + output_directory.toString()
 
-processDirectory(input_directory, suffix, scale,
-                 radius_GB, ilastik_project, probability_threshold, min_size_particle,
-                 minimum_diameter, closeness_tolerance, min_similarity,
-                 output_directory,
-                 headless_mode, debug, tool_version)
 
+try {
+    processDirectory(input_directory, suffix, scale,
+                     radius_GB, ilastik_project, probability_threshold, min_size_particle,
+                     minimum_diameter, closeness_tolerance, min_similarity,
+                     output_directory,
+                     headless_mode, debug, tool_version)
+
+} catch(Exception e) {
+    println("Something went wrong: ${e}")
+
+    if (headless_mode){
+        // This is due to Gaussian Blur
+        System.exit(1)
+    }
+}
 if (headless_mode){
     // This is due to Gaussian Blur
     System.exit(0)
