@@ -230,6 +230,10 @@ def processImage(File image, Float scale,
     
     println "Found " + rt.size() + " ROI"
     
+    if (rt.size() == 0) {
+        return
+    }
+
     // Get Date
     Date date = new Date()
     String now = date.format("yyyy-MM-dd_HH-mm")
