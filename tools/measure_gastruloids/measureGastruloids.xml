@@ -1,4 +1,4 @@
-<tool id="measureGastruloids" name="measureGastruloids" version="@TOOL_VERSION@+galaxy4">
+<tool id="measureGastruloids" name="measureGastruloids" version="@TOOL_VERSION@+galaxy5">
     <description> Use macro from BIOP/Pierre Osteil to measure gastruloids.</description>
     <macros>
         <token name="@TOOL_VERSION@">20220812</token>
@@ -6,7 +6,7 @@
     <requirements>
         <requirement type="package" version="20220414">fiji</requirement>
         <requirement type="package" version="3.7">python</requirement>
-        <requirement type="package" version="1.1.2">fiji-max-inscribed_circles</requirement>
+        <requirement type="package" version="1.1.2">fiji-max_inscribed_circles</requirement>
         <requirement type="package" version="1.8.2">fiji-ilastik</requirement>
     </requirements>
     <stdio>
