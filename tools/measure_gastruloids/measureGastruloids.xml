@@ -19,6 +19,8 @@
 
         mkdir input &&
         mkdir output &&
+        ## Because ilastik wants to write to ${HOME}/.cache and ${HOME}/.config
+        export HOME=`pwd` &&
         #for file in $input_format.input
             #set identifier = re.sub('[^\s\w\-]', '_', str($file.element_identifier))
             ln -s '$file' input/${identifier}.${input_format.file_type} &&
