@@ -1,4 +1,4 @@
-<tool id="measureGastruloids" name="measureGastruloids" version="@TOOL_VERSION@+galaxy3">
+<tool id="measureGastruloids" name="measureGastruloids" version="@TOOL_VERSION@+galaxy4">
     <description> Use macro from BIOP/Pierre Osteil to measure gastruloids.</description>
     <macros>
         <token name="@TOOL_VERSION@">20220812</token>
@@ -34,15 +34,11 @@
         <conditional name="input_format">
             <param name="file_type" type="select" label="Input format" >
                 <option value="tiff" selected="true" >TIFF</option>
-                <option value="tif" >TIF</option>
                 <option value="png" >PNG</option>
                 <option value="jpeg" >JPEG</option>
             </param>
             <when value="tiff">
                 <param name="input" multiple="true"  type="data" format="tiff" label="Select Images to analyse."/>
-            </when>
-            <when value="tif">
-                <param name="input" multiple="true"  type="data" format="tif" label="Select Images to analyse."/>
             </when>
             <when value="png">
                 <param name="input" multiple="true"  type="data" format="png" label="Select Images to analyse."/>
@@ -86,7 +82,7 @@
                     <has_text text="Inscribed 60 circles."/>
                 </assert_contents>
             </output>
-            <output_collection name="ROI" type="list">
+            <output_collection name="ROI" type="list" count="4">
                 <element name="test_Black_tif__0_elongation_rois" file="test_Black_tif__0_elongation_rois.txt" ftype="tabular" />
                 <element name="test_Black_tif__0_roi_coordinates" file="test_Black_tif__0_roi_coordinates.txt" ftype="tabular" />
                 <element name="test_color_tif__0_elongation_rois" file="test_color_tif__0_elongation_rois.txt" ftype="tabular" />
@@ -118,7 +114,7 @@
                     <has_text text="Inscribed 60 circles."/>
                 </assert_contents>
             </output>
-            <output_collection name="ROI" type="list">
+            <output_collection name="ROI" type="list" count="4">
                 <element name="test_Black_tif__0_elongation_rois" file="test_Black_tif__0_elongation_rois_debug.txt" ftype="tabular" />
                 <element name="test_Black_tif__0_roi_coordinates" file="test_Black_tif__0_roi_coordinates.txt" ftype="tabular" />
                 <element name="test_color_tif__0_elongation_rois" file="test_color_tif__0_elongation_rois_debug.txt" ftype="tabular" />
@@ -150,9 +146,10 @@
                     <has_text text="No Adjacent Circles"/>
                 </assert_contents>
             </output>
-            <output_collection name="ROI" type="list">
+            <output_collection name="ROI" type="list" count="4">
                 <element name="test_Black_tif__0_elongation_rois" file="test_Black_tif__0_elongation_rois_200.txt" ftype="tabular" />
                 <element name="test_Black_tif__0_roi_coordinates" file="test_Black_tif__0_roi_coordinates.txt" ftype="tabular" />
+                <element name="test_color_tif__0_elongation_rois" file="test_color_tif__0_elongation_rois_200.txt" ftype="tabular" />
                 <element name="test_color_tif__0_roi_coordinates" file="test_color_tif__0_roi_coordinates.txt" ftype="tabular" />
             </output_collection>
             <output name="summary_results">
@@ -164,6 +161,41 @@
                     <has_text text=",20220812,179,0,0"/>
                 </assert_contents>
             </output>
+        </test>
+        <test expect_num_outputs="3">
+            <!--4 use empty image + non empty image-->
+            <conditional name="input_format">
+                <param name="file_type" value="tiff"/>
+                <param name="input" value="test_Black.tif,black_image.tif" ftype="tiff"/>
+            </conditional>
+            <param name="ilastik_project" value="MyProject_3.ilp" ftype="h5"/>
+            <output name="logfile">
+                <assert_contents>
+                    <has_text text="Ilastik done"/>
+                    <has_text text="Found 0 ROI"/>
+                </assert_contents>
+            </output>
+            <output_collection name="ROI" type="list" count="2">
+                <element name="test_Black_tif__0_elongation_rois" file="test_Black_tif__0_elongation_rois.txt" ftype="tabular" />
+                <element name="test_Black_tif__0_roi_coordinates" file="test_Black_tif__0_roi_coordinates.txt" ftype="tabular" />
+            </output_collection>
+            <output name="summary_results">
+                <assert_contents>
+                    <has_line line=",Label,Area,Perim.,Circ.,Feret,FeretX,FeretY,FeretAngle,MinFeret,AR,Round,Solidity,Date,Version,Largest_Radius,Spine_length,Elongation_index"/>
+                    <has_text text="1,test_Black_tif,389993,4449.445,0.248,1035.773,590,1095,50.917,824.915,1.336,0.748,0.665,"/>
+                    <has_text text=",20220812,178.500,1098.576,3.077"/>
+                    <has_text text=",black_image_tif.tiff,,,,,,,,,,,,"/>
+                    <has_text text=",20220812,,,"/>
+                </assert_contents>
+            </output>
+        </test>
+        <test expect_num_outputs="3" expect_failure="true">
+            <!--5 use only empty image-->
+            <conditional name="input_format">
+                <param name="file_type" value="tiff"/>
+                <param name="input" value="black_image.tif" ftype="tiff"/>
+            </conditional>
+            <param name="ilastik_project" value="MyProject_3.ilp" ftype="h5"/>
         </test>
     </tests>
     <help>
@@ -410,6 +442,10 @@ This is a ImageJ groovy::
         
         println "Found " + rt.size() + " ROI"
         
+        if (rt.size() == 0) {
+            return
+        }
+
         // Get Date
         Date date = new Date()
         String now = date.format("yyyy-MM-dd_HH-mm")
@@ -506,7 +542,7 @@ This is a ImageJ groovy::
                             rm.addRoi(spine)
                         }
                     } catch(Exception e) {
-                        println("Could not create spine")
+                        println("Could not create spine: " + e)
                         rt.setValue("Spine_length", i, 0)
                         rt.setValue("Elongation_index", i, 0)
                     }
@@ -571,12 +607,22 @@ This is a ImageJ groovy::
 
     println "Results will be in " + output_directory.toString()
 
-    processDirectory(input_directory, suffix, scale,
-                    radius_GB, ilastik_project, probability_threshold, min_size_particle,
-                    minimum_diameter, closeness_tolerance, min_similarity,
-                    output_directory,
-                    headless_mode, debug, tool_version)
 
+    try {
+        processDirectory(input_directory, suffix, scale,
+                        radius_GB, ilastik_project, probability_threshold, min_size_particle,
+                        minimum_diameter, closeness_tolerance, min_similarity,
+                        output_directory,
+                        headless_mode, debug, tool_version)
+
+    } catch(Exception e) {
+        println("Something went wrong: " + e)
+
+        if (headless_mode){
+            // This is due to Gaussian Blur
+            System.exit(1)
+        }
+    }
     if (headless_mode){
         // This is due to Gaussian Blur
         System.exit(0)

@@ -330,7 +330,7 @@ def processImage(File image, Float scale,
                         rm.addRoi(spine)
                     }
                 } catch(Exception e) {
-                    println("Could not create spine: ${e}")
+                    println("Could not create spine: " + e)
                     rt.setValue("Spine_length", i, 0)
                     rt.setValue("Elongation_index", i, 0)
                 }
@@ -404,7 +404,7 @@ try {
                      headless_mode, debug, tool_version)
 
 } catch(Exception e) {
-    println("Something went wrong: ${e}")
+    println("Something went wrong: " + e)
 
     if (headless_mode){
         // This is due to Gaussian Blur
