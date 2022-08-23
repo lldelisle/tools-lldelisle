@@ -249,8 +249,9 @@ def processImage(File image, Float scale,
         println "Writting ROI to files"
         ( 0..overlay.size()-1 ).collect{
             File file = new File(output_directory.toString() + "/" + image_basename + "__" + it + "_roi_coordinates.txt")
-            for (Point p : overlay.get(it)) {
-                file.append(p.x + "\t" + p.y + "\n")
+            Polygon poly = overlay.get(it).getPolygon()
+            for (i in 0..<poly.npoints) {
+                file.append(poly.xpoints[i] + "\t" + poly.ypoints[i] + "\n")
             }
         }
 
@@ -351,7 +352,7 @@ def processImage(File image, Float scale,
 
 // Specify global variables
 
-String tool_version = "20220812"
+String tool_version = "20220823"
 
 // User set variables
 

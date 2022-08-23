@@ -1,7 +1,7 @@
-<tool id="measureGastruloids" name="measureGastruloids" version="@TOOL_VERSION@+galaxy5">
+<tool id="measureGastruloids" name="measureGastruloids" version="@TOOL_VERSION@+galaxy0">
     <description> Use macro from BIOP/Pierre Osteil to measure gastruloids.</description>
     <macros>
-        <token name="@TOOL_VERSION@">20220812</token>
+        <token name="@TOOL_VERSION@">20220823</token>
     </macros>
     <requirements>
         <requirement type="package" version="20220414">fiji</requirement>
@@ -92,9 +92,9 @@
                 <assert_contents>
                     <has_line line=",Label,Area,Perim.,Circ.,Feret,FeretX,FeretY,FeretAngle,MinFeret,AR,Round,Solidity,Date,Version,Largest_Radius,Spine_length,Elongation_index"/>
                     <has_text text="1,test_Black_tif,389993,4449.445,0.248,1035.773,590,1095,50.917,824.915,1.336,0.748,0.665,"/>
-                    <has_text text=",20220812,178.500,1098.576,3.077"/>
+                    <has_text text=",20220823,178.500,1098.576,3.077"/>
                     <has_text text="1,test_color_tif,243912,2366.934,0.547,842.257,395,923,176.869,452.391,2.184,0.458,0.846,"/>
-                    <has_text text=",20220812,179,961.284,2.685"/>
+                    <has_text text=",20220823,179,961.284,2.685"/>
                 </assert_contents>
             </output>
         </test>
@@ -124,9 +124,9 @@
                 <assert_contents>
                     <has_line line=",Label,Area,Perim.,Circ.,Feret,FeretX,FeretY,FeretAngle,MinFeret,AR,Round,Solidity,Date,Version,Largest_Radius,Spine_length,Elongation_index"/>
                     <has_text text="1,test_Black_tif,389993,4449.445,0.248,1035.773,590,1095,50.917,824.915,1.336,0.748,0.665,"/>
-                    <has_text text=",20220812,178.500,1098.576,3.077"/>
+                    <has_text text=",20220823,178.500,1098.576,3.077"/>
                     <has_text text="1,test_color_tif,243912,2366.934,0.547,842.257,395,923,176.869,452.391,2.184,0.458,0.846,"/>
-                    <has_text text=",20220812,179,961.284,2.685"/>
+                    <has_text text=",20220823,179,961.284,2.685"/>
                 </assert_contents>
             </output>
         </test>
@@ -156,9 +156,9 @@
                 <assert_contents>
                     <has_line line=",Label,Area,Perim.,Circ.,Feret,FeretX,FeretY,FeretAngle,MinFeret,AR,Round,Solidity,Date,Version,Largest_Radius,Spine_length,Elongation_index"/>
                     <has_text text="1,test_Black_tif,389993,4449.445,0.248,1035.773,590,1095,50.917,824.915,1.336,0.748,0.665,"/>
-                    <has_text text=",20220812,178.500,964.351,2.701"/>
+                    <has_text text=",20220823,178.500,964.351,2.701"/>
                     <has_text text="1,test_color_tif,243912,2366.934,0.547,842.257,395,923,176.869,452.391,2.184,0.458,0.846,"/>
-                    <has_text text=",20220812,179,0,0"/>
+                    <has_text text=",20220823,179,0,0"/>
                 </assert_contents>
             </output>
         </test>
@@ -183,9 +183,9 @@
                 <assert_contents>
                     <has_line line=",Label,Area,Perim.,Circ.,Feret,FeretX,FeretY,FeretAngle,MinFeret,AR,Round,Solidity,Date,Version,Largest_Radius,Spine_length,Elongation_index"/>
                     <has_text text="1,test_Black_tif,389993,4449.445,0.248,1035.773,590,1095,50.917,824.915,1.336,0.748,0.665,"/>
-                    <has_text text=",20220812,178.500,1098.576,3.077"/>
+                    <has_text text=",20220823,178.500,1098.576,3.077"/>
                     <has_text text=",black_image_tif.tiff,,,,,,,,,,,,"/>
-                    <has_text text=",20220812,,,"/>
+                    <has_text text=",20220823,,,"/>
                 </assert_contents>
             </output>
         </test>
@@ -461,8 +461,9 @@ This is a ImageJ groovy::
             println "Writting ROI to files"
             ( 0..overlay.size()-1 ).collect{
                 File file = new File(output_directory.toString() + "/" + image_basename + "__" + it + "_roi_coordinates.txt")
-                for (Point p : overlay.get(it)) {
-                    file.append(p.x + "\t" + p.y + "\n")
+                Polygon poly = overlay.get(it).getPolygon()
+                for (i in 0..<poly.npoints) {
+                    file.append(poly.xpoints[i] + "\t" + poly.ypoints[i] + "\n")
                 }
             }
 
@@ -563,7 +564,7 @@ This is a ImageJ groovy::
 
     // Specify global variables
 
-    String tool_version = "20220812"
+    String tool_version = "20220823"
 
     // User set variables
 
