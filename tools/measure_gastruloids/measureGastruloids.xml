@@ -1,7 +1,7 @@
 <tool id="measureGastruloids" name="measureGastruloids" version="@TOOL_VERSION@+galaxy0">
     <description> Use macro from BIOP/Pierre Osteil to measure gastruloids.</description>
     <macros>
-        <token name="@TOOL_VERSION@">20220823</token>
+        <token name="@TOOL_VERSION@">20220825</token>
     </macros>
     <requirements>
         <requirement type="package" version="20220414">fiji</requirement>
@@ -27,7 +27,9 @@
         #end for
         ImageJ-ilastik --ij2 --headless --console --run '$__tool_directory__/'Area_measure_for_OMERO.groovy 
             'input_directory="input/",output_directory="output/",suffix="${input_format.file_type}",ilastik_project="${ilastik_project}",radius_GB="${radius_GB}",probability_threshold="${probability_threshold}",min_size_particle="${min_size_particle}",minimum_diameter="${minimum_diameter}",closeness_tolerance="${closeness_tolerance}",min_similarity="${min_similarity}",debug="${debug}"' > output.log &&
-        bash '$__tool_directory__/'combine_csv.sh @TOOL_VERSION@ $summary_results ".${input_format.file_type}"
+        bash '$__tool_directory__/'combine_csv.sh
+            Version=@TOOL_VERSION@,RadiusGB=${radius_GB},ProbabilityThreshold=${probability_threshold},MinSizeParticle=${min_size_particle},MinDiameter=${minimum_diameter},ClosenessTolerance=${closeness_tolerance},MinSimilarity=${min_similarity}
+            $summary_results ".${input_format.file_type}"
         ]]>
     </command>
     <inputs>
@@ -90,11 +92,11 @@
             </output_collection>
             <output name="summary_results">
                 <assert_contents>
-                    <has_line line=",Label,Area,Perim.,Circ.,Feret,FeretX,FeretY,FeretAngle,MinFeret,AR,Round,Solidity,Date,Version,Largest_Radius,Spine_length,Elongation_index"/>
+                    <has_line line=",Label,Area,Perim.,Circ.,Feret,FeretX,FeretY,FeretAngle,MinFeret,AR,Round,Solidity,Date,Version,RadiusGB,ProbabilityThreshold,MinSizeParticle,MinDiameter,ClosenessTolerance,MinSimilarity,LargestRadius,SpineLength,ElongationIndex"/>
                     <has_text text="1,test_Black_tif,389993,4449.445,0.248,1035.773,590,1095,50.917,824.915,1.336,0.748,0.665,"/>
-                    <has_text text=",20220823,178.500,1098.576,3.077"/>
+                    <has_text text=",20220825,200,0.400,5000,20,5,0.100,178.500,1098.576,3.077"/>
                     <has_text text="1,test_color_tif,243912,2366.934,0.547,842.257,395,923,176.869,452.391,2.184,0.458,0.846,"/>
-                    <has_text text=",20220823,179,961.284,2.685"/>
+                    <has_text text=",20220825,200,0.400,5000,20,5,0.100,179,961.284,2.685"/>
                 </assert_contents>
             </output>
         </test>
@@ -122,11 +124,11 @@
             </output_collection>
             <output name="summary_results">
                 <assert_contents>
-                    <has_line line=",Label,Area,Perim.,Circ.,Feret,FeretX,FeretY,FeretAngle,MinFeret,AR,Round,Solidity,Date,Version,Largest_Radius,Spine_length,Elongation_index"/>
+                    <has_line line=",Label,Area,Perim.,Circ.,Feret,FeretX,FeretY,FeretAngle,MinFeret,AR,Round,Solidity,Date,Version,RadiusGB,ProbabilityThreshold,MinSizeParticle,MinDiameter,ClosenessTolerance,MinSimilarity,LargestRadius,SpineLength,ElongationIndex"/>
                     <has_text text="1,test_Black_tif,389993,4449.445,0.248,1035.773,590,1095,50.917,824.915,1.336,0.748,0.665,"/>
-                    <has_text text=",20220823,178.500,1098.576,3.077"/>
+                    <has_text text=",20220825,200,0.400,5000,20,5,0.100,178.500,1098.576,3.077"/>
                     <has_text text="1,test_color_tif,243912,2366.934,0.547,842.257,395,923,176.869,452.391,2.184,0.458,0.846,"/>
-                    <has_text text=",20220823,179,961.284,2.685"/>
+                    <has_text text=",20220825,200,0.400,5000,20,5,0.100,179,961.284,2.685"/>
                 </assert_contents>
             </output>
         </test>
@@ -154,11 +156,11 @@
             </output_collection>
             <output name="summary_results">
                 <assert_contents>
-                    <has_line line=",Label,Area,Perim.,Circ.,Feret,FeretX,FeretY,FeretAngle,MinFeret,AR,Round,Solidity,Date,Version,Largest_Radius,Spine_length,Elongation_index"/>
+                    <has_line line=",Label,Area,Perim.,Circ.,Feret,FeretX,FeretY,FeretAngle,MinFeret,AR,Round,Solidity,Date,Version,RadiusGB,ProbabilityThreshold,MinSizeParticle,MinDiameter,ClosenessTolerance,MinSimilarity,LargestRadius,SpineLength,ElongationIndex"/>
                     <has_text text="1,test_Black_tif,389993,4449.445,0.248,1035.773,590,1095,50.917,824.915,1.336,0.748,0.665,"/>
-                    <has_text text=",20220823,178.500,964.351,2.701"/>
+                    <has_text text=",20220825,200,0.400,5000,200,5,0.100,178.500,964.351,2.701"/>
                     <has_text text="1,test_color_tif,243912,2366.934,0.547,842.257,395,923,176.869,452.391,2.184,0.458,0.846,"/>
-                    <has_text text=",20220823,179,0,0"/>
+                    <has_text text=",20220825,200,0.400,5000,200,5,0.100,179,0,0"/>
                 </assert_contents>
             </output>
         </test>
@@ -181,11 +183,11 @@
             </output_collection>
             <output name="summary_results">
                 <assert_contents>
-                    <has_line line=",Label,Area,Perim.,Circ.,Feret,FeretX,FeretY,FeretAngle,MinFeret,AR,Round,Solidity,Date,Version,Largest_Radius,Spine_length,Elongation_index"/>
+                    <has_line line=",Label,Area,Perim.,Circ.,Feret,FeretX,FeretY,FeretAngle,MinFeret,AR,Round,Solidity,Date,Version,RadiusGB,ProbabilityThreshold,MinSizeParticle,MinDiameter,ClosenessTolerance,MinSimilarity,LargestRadius,SpineLength,ElongationIndex"/>
                     <has_text text="1,test_Black_tif,389993,4449.445,0.248,1035.773,590,1095,50.917,824.915,1.336,0.748,0.665,"/>
-                    <has_text text=",20220823,178.500,1098.576,3.077"/>
-                    <has_text text=",black_image_tif.tiff,,,,,,,,,,,,"/>
-                    <has_text text=",20220823,,,"/>
+                    <has_text text=",20220825,200,0.400,5000,20,5,0.100,178.500,1098.576,3.077"/>
+                    <has_text text=",black_image_tif,,,,,,,,,,,,"/>
+                    <has_text text=",20220825,200.0,0.4,5000,20,5,0.1,,,"/>
                 </assert_contents>
             </output>
         </test>
@@ -454,6 +456,12 @@ This is a ImageJ groovy::
         for ( int row = 0;row<rt.size();row++) {
             rt.setValue("Date", row, now)
             rt.setValue("Version", row, tool_version)
+            rt.setValue("RadiusGB", row, radius_GB)
+            rt.setValue("ProbabilityThreshold", row, probability_threshold)
+            rt.setValue("MinSizeParticle", row, min_size_particle)
+            rt.setValue("MinDiameter", row, minimum_diameter)
+            rt.setValue("ClosenessTolerance", row, closeness_tolerance)
+            rt.setValue("MinSimilarity", row, min_similarity)
         }
 
         Overlay overlay = mask_ilastik_imp.getOverlay()
@@ -493,7 +501,7 @@ This is a ImageJ groovy::
                 // get the first roi (largest circle)
                 Roi circle_roi = circles.get(0)
                 double circle_roi_radius = circle_roi.getStatistics().width / 2
-                rt.setValue("Largest_Radius", i, circle_roi_radius * pixelWidth)
+                rt.setValue("LargestRadius", i, circle_roi_radius * pixelWidth)
                 if (headless_mode) {
                     file_elong = new File(output_directory.toString() + "/" + image_basename + "__" + i + "_elongation_rois.txt")
                     if (debug) {
@@ -530,8 +538,8 @@ This is a ImageJ groovy::
                     try {
                         def PolygonRoi spine = sbp.getSpine()
                         double line_roi_length = spine.getLength()
-                        rt.setValue("Spine_length", i, line_roi_length * pixelWidth)
-                        rt.setValue("Elongation_index", i, line_roi_length / (2*circle_roi_radius))
+                        rt.setValue("SpineLength", i, line_roi_length * pixelWidth)
+                        rt.setValue("ElongationIndex", i, line_roi_length / (2*circle_roi_radius))
                         if (headless_mode) {
                             // Then the spine coordinates
                             double[] all_x = spine.getPolygon().xpoints
@@ -564,7 +572,7 @@ This is a ImageJ groovy::
 
     // Specify global variables
 
-    String tool_version = "20220823"
+    String tool_version = "20220825"
 
     // User set variables
 

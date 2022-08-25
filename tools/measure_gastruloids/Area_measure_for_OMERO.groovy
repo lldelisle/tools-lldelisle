@@ -242,6 +242,12 @@ def processImage(File image, Float scale,
     for ( int row = 0;row<rt.size();row++) {
         rt.setValue("Date", row, now)
         rt.setValue("Version", row, tool_version)
+        rt.setValue("RadiusGB", row, radius_GB)
+        rt.setValue("ProbabilityThreshold", row, probability_threshold)
+        rt.setValue("MinSizeParticle", row, min_size_particle)
+        rt.setValue("MinDiameter", row, minimum_diameter)
+        rt.setValue("ClosenessTolerance", row, closeness_tolerance)
+        rt.setValue("MinSimilarity", row, min_similarity)
     }
 
     Overlay overlay = mask_ilastik_imp.getOverlay()
@@ -281,7 +287,7 @@ def processImage(File image, Float scale,
             // get the first roi (largest circle)
             Roi circle_roi = circles.get(0)
             double circle_roi_radius = circle_roi.getStatistics().width / 2
-            rt.setValue("Largest_Radius", i, circle_roi_radius * pixelWidth)
+            rt.setValue("LargestRadius", i, circle_roi_radius * pixelWidth)
             if (headless_mode) {
                 file_elong = new File(output_directory.toString() + "/" + image_basename + "__" + i + "_elongation_rois.txt")
                 if (debug) {
@@ -318,8 +324,8 @@ def processImage(File image, Float scale,
                 try {
                     def PolygonRoi spine = sbp.getSpine()
                     double line_roi_length = spine.getLength()
-                    rt.setValue("Spine_length", i, line_roi_length * pixelWidth)
-                    rt.setValue("Elongation_index", i, line_roi_length / (2*circle_roi_radius))
+                    rt.setValue("SpineLength", i, line_roi_length * pixelWidth)
+                    rt.setValue("ElongationIndex", i, line_roi_length / (2*circle_roi_radius))
                     if (headless_mode) {
                         // Then the spine coordinates
                         double[] all_x = spine.getPolygon().xpoints
@@ -352,7 +358,7 @@ def processImage(File image, Float scale,
 
 // Specify global variables
 
-String tool_version = "20220823"
+String tool_version = "20220825"
 
 // User set variables
 
