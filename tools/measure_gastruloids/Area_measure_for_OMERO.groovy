@@ -19,8 +19,8 @@
 
 // In both modes,
 // The result table is written to {image_basename}__Results.csv
-// The measures are: Area, Perim., Circ.,Feret,FeretX,FeretY,FeretAngle,MinFeret,AR,Round,Solidity,Date,Version,Largest_Radius,Spine_length,Elongation_index
-// Spine_length and Elongation_index are set to 0 if only 1 circle fits into the ROI.
+// The measures are: Area,Perim.,Circ.,Feret,FeretX,FeretY,FeretAngle,MinFeret,AR,Round,Solidity,Date,Version,RadiusGB,ProbabilityThreshold,MinSizeParticle,MinDiameter,ClosenessTolerance,MinSimilarity,LargestRadius,SpineLength,ElongationIndex
+// LargestRadius, SpineLength and ElongationIndex are set to 0 if only 1 circle fits into the ROI.
 
 import ij.*
 import ij.process.*
@@ -338,17 +338,17 @@ def processImage(File image, Float scale,
                     }
                 } catch(Exception e) {
                     println("Could not create spine: " + e)
-                    rt.setValue("Spine_length", i, 0)
-                    rt.setValue("Elongation_index", i, 0)
+                    rt.setValue("SpineLength", i, 0)
+                    rt.setValue("ElongationIndex", i, 0)
                 }
             } else {
-                rt.setValue("Spine_length", i, 0)
-                rt.setValue("Elongation_index", i, 0)
+                rt.setValue("SpineLength", i, 0)
+                rt.setValue("ElongationIndex", i, 0)
             }
         } else {
-            rt.setValue("Largest_Radius", i, 0)
-            rt.setValue("Spine_length", i, 0)
-            rt.setValue("Elongation_index", i, 0)
+            rt.setValue("LargestRadius", i, 0)
+            rt.setValue("SpineLength", i, 0)
+            rt.setValue("ElongationIndex", i, 0)
         }
     }
     println "Writting measurements to file"
@@ -358,7 +358,7 @@ def processImage(File image, Float scale,
 
 // Specify global variables
 
-String tool_version = "20220825"
+String tool_version = "20220826"
 
 // User set variables
 

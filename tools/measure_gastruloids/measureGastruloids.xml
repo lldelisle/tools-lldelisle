@@ -1,7 +1,7 @@
 <tool id="measureGastruloids" name="measureGastruloids" version="@TOOL_VERSION@+galaxy0">
     <description> Use macro from BIOP/Pierre Osteil to measure gastruloids.</description>
     <macros>
-        <token name="@TOOL_VERSION@">20220825</token>
+        <token name="@TOOL_VERSION@">20220826</token>
     </macros>
     <requirements>
         <requirement type="package" version="20220414">fiji</requirement>
@@ -199,6 +199,37 @@
             </conditional>
             <param name="ilastik_project" value="MyProject_3.ilp" ftype="h5"/>
         </test>
+        <test expect_num_outputs="3">
+            <!--6 2 rois and one without circle-->
+            <conditional name="input_format">
+                <param name="file_type" value="tiff"/>
+                <param name="input" value="fake_2rois.tif" ftype="tiff"/>
+            </conditional>
+            <param name="ilastik_project" value="MyProject_3.ilp" ftype="h5"/>
+            <param name="minimum_diameter" value="200"/>
+            <output name="logfile">
+                <assert_contents>
+                    <has_text text="Ilastik done"/>
+                    <has_text text="Found 2 ROI"/>
+                    <has_text text="Inscribed 0 circles."/>
+                    <has_text text="Inscribed 3 circles."/>
+                </assert_contents>
+            </output>
+            <output_collection name="ROI" type="list" count="3">
+                <element name="fake_2rois_tif__0_roi_coordinates" file="fake_2rois_tif__0_roi_coordinates.txt" ftype="tabular" />
+                <element name="fake_2rois_tif__1_elongation_rois" file="fake_2rois_tif__1_elongation_rois.txt" ftype="tabular" />
+                <element name="fake_2rois_tif__1_roi_coordinates" file="fake_2rois_tif__1_roi_coordinates.txt" ftype="tabular" />
+            </output_collection>
+            <output name="summary_results">
+                <assert_contents>
+                    <has_line line=",Label,Area,Perim.,Circ.,Feret,FeretX,FeretY,FeretAngle,MinFeret,AR,Round,Solidity,Date,Version,RadiusGB,ProbabilityThreshold,MinSizeParticle,MinDiameter,ClosenessTolerance,MinSimilarity,LargestRadius,SpineLength,ElongationIndex"/>
+                    <has_text text="1,fake_2rois_tif,41024,879.997,0.666,287.571,1599,379,50.220,222.760,1.301,0.769,0.926,"/>
+                    <has_text text="20220825,200,0.400,5000,200,5,0.100,0.000,0.000,0.000"/>
+                    <has_text text="2,fake_2rois_tif,389993,4449.445,0.248,1035.773,590,1095,50.917,824.915,1.336,0.748,0.665,"/>
+                    <has_text text=",20220825,200,0.400,5000,200,5,0.100,178.500,964.351,2.701"/>
+                </assert_contents>
+            </output>
+        </test>
     </tests>
     <help>
     <![CDATA[
@@ -233,8 +264,8 @@ This is a ImageJ groovy::
 
     // In both modes,
     // The result table is written to {image_basename}__Results.csv
-    // The measures are: Area, Perim., Circ.,Feret,FeretX,FeretY,FeretAngle,MinFeret,AR,Round,Solidity,Date,Version,Largest_Radius,Spine_length,Elongation_index
-    // Spine_length and Elongation_index are set to 0 if only 1 circle fits into the ROI.
+    // The measures are: Area,Perim.,Circ.,Feret,FeretX,FeretY,FeretAngle,MinFeret,AR,Round,Solidity,Date,Version,RadiusGB,ProbabilityThreshold,MinSizeParticle,MinDiameter,ClosenessTolerance,MinSimilarity,LargestRadius,SpineLength,ElongationIndex
+    // LargestRadius, SpineLength and ElongationIndex are set to 0 if only 1 circle fits into the ROI.
 
     import ij.*
     import ij.process.*
@@ -552,17 +583,17 @@ This is a ImageJ groovy::
                         }
                     } catch(Exception e) {
                         println("Could not create spine: " + e)
-                        rt.setValue("Spine_length", i, 0)
-                        rt.setValue("Elongation_index", i, 0)
+                        rt.setValue("SpineLength", i, 0)
+                        rt.setValue("ElongationIndex", i, 0)
                     }
                 } else {
-                    rt.setValue("Spine_length", i, 0)
-                    rt.setValue("Elongation_index", i, 0)
+                    rt.setValue("SpineLength", i, 0)
+                    rt.setValue("ElongationIndex", i, 0)
                 }
             } else {
-                rt.setValue("Largest_Radius", i, 0)
-                rt.setValue("Spine_length", i, 0)
-                rt.setValue("Elongation_index", i, 0)
+                rt.setValue("LargestRadius", i, 0)
+                rt.setValue("SpineLength", i, 0)
+                rt.setValue("ElongationIndex", i, 0)
             }
         }
         println "Writting measurements to file"
@@ -572,7 +603,7 @@ This is a ImageJ groovy::
 
     // Specify global variables
 
-    String tool_version = "20220825"
+    String tool_version = "20220826"
 
     // User set variables
 
