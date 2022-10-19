@@ -2,5 +2,6 @@ categories:
    - SAM
 description: Revert the mapped orientation of R2 mates in a bam.
 name: revertr2orientationinbam
-owner: ldelisle
+owner: lldelisle
+remote_repository_url: https://github.com/lldelisle/tools-lldelisle/tree/master/tools/revertR2orientationInBam
 long_description: This tool is very useful when you have paired-end stranded RNA-seq. Using this tool prior to a bedtools genome coverage allow to have strand specific coverage using both mates. It uses samtools to convert input to sam format and then awk to modify the flag "reverse strand" for the second mate of pairs.
