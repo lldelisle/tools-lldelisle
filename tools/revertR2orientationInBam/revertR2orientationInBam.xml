@@ -1,4 +1,4 @@
-<tool id="revertR2orientationInBam" name="revertR2orientationInBam" version="0.0.1">
+<tool id="revertR2orientationInBam" name="revertR2orientationInBam" version="0.0.1" profile="16.04">
   <description> Revert the mapped orientation of R2 mates in a bam.</description>
   <requirements>
     <requirement type="package" version="1.9">samtools</requirement>
@@ -19,8 +19,7 @@
   <inputs>
     <!-- note unsorted bam includes all derived bam types (inlcuding bam which is sorted) -->
     <param name="input" type="data" format="sam,bam" label="Select a sam or bam file."/>
-   </inputs>
-  
+  </inputs>
   <outputs>
     <data format="bam" name="output" label="$input.name with R2 orientation reversed"/>
   </outputs>
@@ -31,9 +30,11 @@
       <output name="output" file="output.bam" ftype="bam"/>
     </test>
   </tests>  
-  <help><![CDATA[
+  <help>
+<![CDATA[
     This tool is very useful when you have paired-end stranded RNA-seq.
     Using this tool prior to a bedtools genome coverage allow to have strand specific coverage using both mates.
     It uses samtools to convert input to sam format and then awk to modify the flag "reverse strand" for the second mate of pairs.
-]]>  </help>
+]]>
+  </help>
 </tool>
