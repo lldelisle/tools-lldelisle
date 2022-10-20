@@ -1,7 +1,8 @@
 <tool id="revertR2orientationInBam" name="revertR2orientationInBam" version="0.0.2" profile="16.04">
   <description> Revert the mapped orientation of R2 mates in a bam.</description>
   <requirements>
-    <requirement type="package" version="1.9">samtools</requirement>
+    <requirement type="package" version="1.16.1">samtools</requirement>
+    <requirement type="package" version="5.1.0">gawk</requirement>
   </requirements>
   <stdio>
     <!-- Anything other than zero is an error -->
