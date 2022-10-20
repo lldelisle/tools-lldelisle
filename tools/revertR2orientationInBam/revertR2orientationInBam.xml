@@ -29,7 +29,7 @@
   <tests>
     <test>
       <param name="input" value="input.sam"/>
-      <output name="output" file="output.bam" ftype="bam" lines_diff="2"/>
+      <output name="output" file="output.bam" ftype="bam" lines_diff="4"/>
     </test>
   </tests>  
   <help>
