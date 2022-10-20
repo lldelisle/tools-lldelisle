@@ -13,6 +13,7 @@
   </stdio>
   <command>
 <![CDATA[
+        set -o pipefail;
         bash $__tool_directory__/revertR2orientationInBam.sh '$input' '$output'
 ]]>
   </command>
