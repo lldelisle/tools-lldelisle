@@ -1,4 +1,4 @@
-<tool id="revertR2orientationInBam" name="revertR2orientationInBam" version="0.0.1" profile="16.04">
+<tool id="revertR2orientationInBam" name="revertR2orientationInBam" version="0.0.2" profile="16.04">
   <description> Revert the mapped orientation of R2 mates in a bam.</description>
   <requirements>
     <requirement type="package" version="1.9">samtools</requirement>
@@ -13,7 +13,7 @@
   </stdio>
   <command>
 <![CDATA[
-        bash $__tool_directory__/revertR2orientationInBam.sh $input $output
+        bash $__tool_directory__/revertR2orientationInBam.sh '$input' '$output'
 ]]>
   </command>
   <inputs>
