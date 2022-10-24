@@ -1,35 +1,55 @@
-<tool id="cooler_makebins" name="cooler_makebins" version="0.0.1">
+<tool id="cooler_makebins" name="cooler_makebins" version="@VERSION@+galaxy0" profile="18.01">
   <description> Generate fixed-width genomic bins.</description>
   <macros>
     <import>macros.xml</import>
   </macros>
   <expand macro="requirements" />
   <expand macro="stdio" />
-  <command>
-    cooler makebins -o $output $chromosomeSize $binsize
+  <command detect_errors="exit_code"><![CDATA[
+    cooler makebins -o '$output'
+    #if str($size_source.size_source_selector) == 'cached':
+      '$size_source.fasta_cached.fields.path'.fai
+    #else:
+      '$size_source.chromosomeSize'
+    #end if
+    $binsize
+    ]]>
   </command>
   <inputs>
     <param name="binsize" type="integer" value="40000"  label="Put the size of the bin in base pairs.">
       <validator type="in_range" min="0" />
     </param>
-    <param name="chromosomeSize" multiple="false"  type="data" format="tabular" label="Select a file with the size of chromosome (One column with the chromosome names in the desired order, one column with the sizes)."/>
+    <expand macro="size_macro" />
   </inputs>
   
   <outputs>
-    <data format="bed" name="output" label="bins.${binsize} of ${chromosomeSize.name}"/>
+    <data format="bed" name="output" />
   </outputs>
   
   <tests>
     <test>
       <param name="binsize" value="1000000"/>
-      <param name="chromosomeSize" value="chr19.size"/>
+      <conditional name="size_source">
+        <param name="size_source_selector" value="history"/>
+        <param name="chromosomeSize" value="chr19.size"/>
+      </conditional>
       <output name="output" file="chr19.1M.bins"/>
+    </test>
+    <test>
+      <param name="binsize" value="40000"/>
+      <conditional name="size_source">
+        <param name="size_source_selector" value="cached"/>
+        <param name="fasta_cached" value="chrM"/>
+      </conditional>
+      <output name="output" file="chrM.40kb.bins"/>
     </test>
   </tests> 
 
   <help>
     **cooler makebins**
     tool developped by mirnylab
-    see https://github.com/mirnylab/cooler
+    see https://github.com/open2c/cooler
+    and https://cooler.readthedocs.io/en/latest/cli.html#cooler-makebins
   </help>
+  <expand macro="citation_cooler" />
 </tool>
