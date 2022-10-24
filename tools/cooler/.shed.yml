@@ -7,3 +7,6 @@ long_description: cooler package allow to build contact matrices at any resoluti
 name: cooler
 owner: lldelisle
 remote_repository_url: https://github.com/lldelisle/tools-lldelisle/blob/master/tools/cooler/.shed.yml
+auto_tool_repositories:
+  name_template: "{{ tool_id }}"
+  description_template: "Wrapper for the cooler suite tool: {{ tool_name }}"
