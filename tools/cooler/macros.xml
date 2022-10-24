@@ -1,9 +1,10 @@
 <macros>
+  <token name="@VERSION@">0.8.11</token>
   <xml name="requirements">
     <requirements>
-      <requirement type="package" version="0.2.5">tabix</requirement>
-      <requirement type="package" version="2.7.0">h5py</requirement>
-      <requirement type="package" version="0.7.4">cooler</requirement>
+      <requirement type="package" version="1.16">htslib</requirement>
+      <requirement type="package" version="3.7.0">h5py</requirement>
+      <requirement type="package" version="@VERSION@">cooler</requirement>
     </requirements>
   </xml>
   <xml name="stdio">
@@ -16,5 +17,28 @@
       <regex match="Exception:" />
     </stdio>
     <version_command>cooler --version</version_command>
-</xml>
+  </xml>
+  <xml name="size_macro">
+    <conditional name="size_source">
+      <param name="size_source_selector" type="select" label="Choose the source for the chromosome sizes">
+          <option value="cached">Locally cached</option>
+          <option value="history">History</option>
+      </param>
+      <when value="cached">
+          <param name="fasta_cached" type="select" label="Fasta availables">
+              <options from_data_table="fasta_indexes">
+                  <validator type="no_options" message="No cached fasta is available"/>
+              </options>
+          </param>
+      </when>
+      <when value="history">
+        <param name="chromosomeSize" multiple="false" type="data" format="tabular" label="Select a file with the size of chromosome (One column with the chromosome names in the desired order, one column with the sizes)."/>
+      </when>
+    </conditional>
+  </xml>
+  <xml name="citation_cooler">
+      <citations>
+          <citation type="doi">10.1093/bioinformatics/btz540</citation>
+      </citations>
+  </xml>
 </macros>

@@ -1,36 +1,42 @@
-<tool id="cooler_balance" name="cooler_balance" version="0.0.1">
-  <description> Copy and balance a cool file.</description>
+<tool id="cooler_balance" name="cooler_balance" version="@VERSION@+galaxy0" profile="18.01">
+  <description>Copy and balance a cool file.</description>
   <macros>
     <import>macros.xml</import>
   </macros>
   <expand macro="requirements" />
   <expand macro="stdio" />
-  <command>
-    cp $input $output
-    &amp;&amp; cooler balance --mad-max $madmax --min-nnz $minnnz --min-count $mincount --ignore-diags $ignorediags --tol $tol --max-iters $maxiters $cisonly -f 
-    #if $provideR.provideReg:
-      --blacklist $provideR.bedFile
+  <command detect_errors="exit_code"><![CDATA[
+    cp '$input' '$output' &&
+    cooler balance -p \${GALAXY_SLOTS:-1} --mad-max $madmax --min-nnz $minnnz --min-count $mincount --ignore-diags $ignorediags --ignore-dist $ignoredist --tol $tol --max-iters $maxiters $cistrans -f --convergence-policy $convergencepolicy
+    #if $blacklist:
+      --blacklist '$blacklist'
     #end if
-    $output
+    '$output'
+    ]]>
   </command>
   <inputs>
     <param name="input" multiple="false" type="data" format="cool" label="Select the input cool file to balance."/>
-    <param name="madmax" type="integer" value="5" label="Ignore bins from the contact matrix using the 'MAD-max' filter: bins whose log marginal sum is less than ``mad-max`` median absolute deviations below the median log marginal sum of all the bins in the same chromosome."/>
-    <param name="minnnz" type="integer" value="10" label="Ignore bins from the contact matrix whose marginal number of nonzeros is less than this number."/>
-    <param name="mincount" type="integer" value="0" label="Ignore bins from the contact matrix whose marginal count is less than this number."/>
-    <param name="ignorediags" type="integer" value="2" label="Number of diagonals of the contact matrix to ignore, including the main diagonal. Examples: 0 ignores nothing, 1 ignores the main diagonal, 2 ignores diagonals (-1, 0, 1), etc."/>
-    <param name="tol" type="float" value="1e-5" label="Threshold value of variance of the marginals for the algorithm to converge."/>
-    <param name="maxiters" type="integer" value="200" label="Maximum number of iterations to perform if convergence is not achieved.."/>
-    <param name="cisonly" type="boolean" checked="False" truevalue="--cis-only" falsevalue="" label="Calculate weights against intra-chromosomal data only instead of genome-wide."/>    
-    <conditional name="provideR">
-      <param name="provideReg" type="boolean" truevalue="true" falsevalue="false" label="Do you want to provide a bed file with regions to mask during the balancing procedure?"/>
-      <when value="true">
-        <param name="bedFile" type="data" format="bed" label="Path to a 3-column BED file containing genomic regions to mask out during the balancing procedure, e.g. sequence gaps or regions of poor mappability."/>
-      </when>                    
-      <when value="false">
-        <!-- do nothing -->
-      </when>
-    </conditional>
+    <param argument="--mad-max" name="madmax" type="integer" value="5" label="Ignore bins from the contact matrix using the 'MAD-max' filter: bins whose log marginal sum is less than ``mad-max`` median absolute deviations below the median log marginal sum of all the bins in the same chromosome."/>
+    <param argument="--min-nnz" name="minnnz" type="integer" value="10" label="Ignore bins from the contact matrix whose marginal number of nonzeros is less than this number."/>
+    <param argument="--min-count" name="mincount" type="integer" value="0" label="Ignore bins from the contact matrix whose marginal count is less than this number."/>
+    <param argument="--ignore-diags" name="ignorediags" type="integer" value="2" label="Number of diagonals of the contact matrix to ignore, including the main diagonal. Examples: 0 ignores nothing, 1 ignores the main diagonal, 2 ignores diagonals (-1, 0, 1), etc."/>
+    <param argument="--ignore-dist" name="ignoredist" type="integer" value="0" label="Distance in bp to ignore." help="Max between distance and diags will be used."/>
+    <param argument="--tol" type="float" value="1e-5" label="Threshold value of variance of the marginals for the algorithm to converge."/>
+    <param argument="--max-iters" name="maxiters" type="integer" value="200" label="Maximum number of iterations to perform if convergence is not achieved.."/>
+    <param name="cistrans" type="select" label="Interactions to consider to calculate weights.">
+        <option value="">Genome wide </option>
+        <option value="--cis-only">Cis only </option>
+        <option value="--trans-only">Trans only </option>
+    </param>
+    <param argument="--blacklist" type="data" format="bed" optional="true" label="Path to a 3-column BED file containing genomic regions to mask out during the balancing procedure, e.g. sequence gaps or regions of poor mappability."/>
+    <param argument="--name" type="text" value="weight" label="Name of column to write to." />
+    <param name="convergencepolicy" type="select" label="Convergence policy: What to do with weights when balancing doesn't converge in max_iters."
+           help="'store_final': Store the final result, regardless of whether the iterations converge to the specified tolerance; 'store_nan': Store a vector of NaN values to indicate that the matrix failed to converge; 'discard': Store nothing and exit gracefully; 'error': Abort with non-zero exit status.">
+        <option value="store_final">store_final</option>
+        <option value="store_nan">store_nan</option>
+        <option value="discard">discard</option>
+        <option value="error">error</option>
+    </param>
   </inputs>
   
   <outputs>
@@ -39,27 +45,30 @@
   
   <tests>
     <test>
-      <param name="input" value="input.cool"/>
+      <param name="input" value="input.cool" ftype="cool"/>
       <param name="madmax" value="5"/>
       <param name="mincount" value="0"/>
       <param name="ignorediags" value="2"/>
       <param name="tol" value="1e-5"/>
       <param name="maxiters" value="1000"/>
-      <param name="cisonly" value="True"/>
-      <param name="provideReg" value="False"/>
-      <output name="output" file="output.cool"/>
+      <param name="cistrans" value="--cis-only"/>
+      <output name="output" file="output.cool" compare="sim_size"/>
     </test>
   </tests> 
 
   <help>
-    **cooler cload**
+    **cooler balance**
     tool developped by mirnylab
     see https://github.com/mirnylab/cooler
+    and https://cooler.readthedocs.io/en/latest/cli.html#cooler-balance
     
     command-line::
     
       cp $input $output
-      &amp;&amp; cooler balance --mad-max madmax --min-nnz minnnz --min-count mincount --ignore-diags ignorediags --tol tol --max-iters maxiters cisonly -f --blacklist provideR.bedFile output
+      cooler balance -p \${GALAXY_SLOTS:-1} --mad-max madmax --min-nnz minnnz --min-count mincount --ignore-diags ignorediags --ignore-dist ignoredist --tol tol --max-iters maxiters cistrans -f 
+      --blacklist 'blacklist'
+
     
   </help>
+  <expand macro="citation_cooler" />
 </tool>

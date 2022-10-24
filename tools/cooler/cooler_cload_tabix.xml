@@ -1,23 +1,39 @@
-<tool id="cooler_cload_pairix" name="cooler_cload_tabix" version="0.0.1">
-  <description> Create a cooler from a tabix-indexed contact file and a list of genomic bins.</description>
+<tool id="cooler_cload_tabix" name="cooler_cload_tabix" version="@VERSION@+galaxy0" profile="18.01">
+  <description> Create a cool file from a tabix-indexed contact file and a list of genomic bins.</description>
   <macros>
     <import>macros.xml</import>
   </macros>
   <expand macro="requirements" />
   <expand macro="stdio" />
-  <command>
-    cooler cload tabix --assembly $assembly -c2 $c2 -p2 $p2 $input_bed $input_pairs $output
+  <command detect_errors="exit_code"><![CDATA[
+    ##set up input files
+    ln -s '$input_pairs' pairs.tabix &&
+    #if str( $input_pairs.metadata.tabix_index ) != "None":
+      ln -s '$input_pairs.metadata.tabix_index' pairs.tabix.tbi &&
+    #else:
+      tabix -s $pairs_advanced.c1 -b $pairs_advanced.p1 -e $pairs_advanced.p1 pairs.tabix &&
+    #end if
+    cooler cload tabix --assembly '$assembly' -c2 $c2 -p2 $p2 '$input_bed' pairs.tabix '$output'
+    ]]>
   </command>
   <inputs>
-    <param name="assembly" type="text" label="name of genome assembly"/>
+    <param name="input_pairs" multiple="false"  type="data" format="bgzip,tabix" label="Select the output of csort_tabix."/>
+    <section name="pairs_advanced" title="If your input is not already indexed" expanded="False">
+      <param name="c1" type="integer" value="1" label="field number in the input file (starting from 1) of the chromosome of mate 1.">
+        <validator type="in_range" min="1" />
+      </param>
+      <param name="p1" type="integer" value="2" label="field number in the input file (starting from 1) of the position of mate 1.">
+        <validator type="in_range" min="1" />
+      </param>
+    </section>
     <param name="c2" type="integer" value="3" label="field number in the input file (starting from 1) of the chromosome of mate 2 (same as in csort).">
       <validator type="in_range" min="1" />
     </param>
     <param name="p2" type="integer" value="4" label="field number in the input file (starting from 1) of the position of mate 2 (same as in csort).">
       <validator type="in_range" min="1" />
     </param>
+    <param name="assembly" type="text" label="name of genome assembly"/>
     <param name="input_bed" multiple="false"  type="data" format="bed" label="Select the output of makebins."/>
-    <param name="input_pairs" multiple="false"  type="data" format="tabix" label="Select the output of csort_tabix."/>
   </inputs>
   
   <outputs>
@@ -25,24 +41,31 @@
   </outputs>
   
   <tests>
+    <!-- For the moment I cannot test this tool -->
     <test>
-      <param name="input_pairs" value="input.validPairs.tabix"/>
+      <param name="input_pairs" value="input.validPairs.tabix" ftype="bgzip"/>
       <param name="input_bed" value="chr19.1M.bins"/>
       <param name="assembly" value="chr19"/>
+      <section name="pairs_advanced">
+        <param name="c1" value="3"/>
+        <param name="p1" value="4"/>
+      </section>
       <param name="c2" value="7"/>
       <param name="p2" value="8"/>
-      <output name="output" file="input.cool"/>
+      <output name="output" file="input.cool" compare="sim_size"/>
     </test>
   </tests> 
 
   <help>
     **cooler cload**
     tool developped by mirnylab
-    see https://github.com/mirnylab/cooler
-    
+    see https://github.com/open2c/cooler
+    and https://cooler.readthedocs.io/en/latest/cli.html#cooler-cload-tabix
+        
     command-line::
     
       cooler cload tabix --assembly assembly -c2 c2 -p2 p2 input_bed input_pairs output
     
   </help>
+  <expand macro="citation_cooler" />
 </tool>
