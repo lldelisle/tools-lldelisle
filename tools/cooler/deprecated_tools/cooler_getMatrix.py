@@ -14,8 +14,8 @@ def getHeaders(c, r, a):
     chromID = matrixWithAllInfo[:, [0]]
     starts = matrixWithAllInfo[:, [1]]
     ends = matrixWithAllInfo[:, [2]]
-    return(["%s|%s|%s:%i-%i" % (i, a, chromid[0], s, e)
-            for i, chromid, s, e in zip(fragID, chromID, starts, ends)])
+    return (["%s|%s|%s:%i-%i" % (i, a, chromid[0], s, e)
+             for i, chromid, s, e in zip(fragID, chromID, starts, ends)])
 
 
 def extractMatrix(args):
