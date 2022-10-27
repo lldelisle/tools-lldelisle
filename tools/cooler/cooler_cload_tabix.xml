@@ -42,8 +42,12 @@
   
   <tests>
     <!-- For the moment I cannot test this tool -->
-    <!-- <test>
-      <param name="input_pairs" value="input.validPairs.tabix" ftype="bgzip"/>
+    <test>
+      <param name="input_pairs" value="input.validPairs.tabix" ftype="interval">
+        <metadata name="chromCol" value="3"/>
+        <metadata name="startCol" value="4"/>
+        <metadata name="endCol" value="4"/>
+      </param>
       <param name="input_bed" value="chr19.1M.bins"/>
       <param name="assembly" value="chr19"/>
       <section name="pairs_advanced">
@@ -53,7 +57,7 @@
       <param name="c2" value="7"/>
       <param name="p2" value="8"/>
       <output name="output" file="input.cool" compare="sim_size"/>
-    </test> -->
+    </test>
   </tests> 
 
   <help>
