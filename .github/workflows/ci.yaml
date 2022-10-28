@@ -68,6 +68,7 @@ jobs:
         galaxy-branch: ${{ steps.get-fork-branch.outputs.branch }}
         max-chunks: ${{ env.MAX_CHUNKS }}
         python-version: ${{ matrix.python-version }}
+        additional-planemo-options: --conda_channels ilastik-forge,pytorch,iuc,conda-forge,bioconda,defaults
     - name: Show repository list
       run: echo '${{ steps.discover.outputs.repository-list }}'
     - name: Show chunks
