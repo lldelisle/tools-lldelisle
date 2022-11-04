@@ -1,7 +1,7 @@
-<tool id="fromgtfTobed12" name="fromgtftobed12" version="0.1.1">
+<tool id="fromgtfTobed12" name="fromgtftobed12" version="0.11.1+galaxy0">
   <description> Convert a gtf to a bed12.</description>
   <requirements>
-    <requirement type="package" version="0.9">gffutils</requirement>
+    <requirement type="package" version="0.11.1">gffutils</requirement>
   </requirements>
   <stdio>
     <!-- Anything other than zero is an error -->
