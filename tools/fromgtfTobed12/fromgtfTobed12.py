@@ -115,7 +115,7 @@ def convert_gtf_to_bed(fn, fo, useGene, mergeTranscripts,
         fo.write("%s\t%d\t%d\t%s\t%d\t%s\t%d\t%d\t%s\t%d\t%s\t%s\n" %
                  (chrom, tr.start - 1, tr.end, trName, 0, tr.strand,
                   cds_start, cds_end, "0", len(exons_starts),
-                  ",".join([str(l) for l in exons_length]),
+                  ",".join([str(ex_l) for ex_l in exons_length]),
                   ",".join([str(s - (tr.start - 1)) for s in exons_starts])))
 
 
