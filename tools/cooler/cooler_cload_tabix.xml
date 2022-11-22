@@ -7,8 +7,8 @@
   <expand macro="stdio" />
   <command detect_errors="exit_code"><![CDATA[
     ##set up input files
-    ln -s '$input_pairs' pairs.tabix &&
-    ln -s '$input_pairs.metadata.tabix_index' pairs.tabix.tbi &&
+    ln -s '$format_sel.input_pairs' pairs.tabix &&
+    ln -s '$format_sel.input_pairs.metadata.tabix_index' pairs.tabix.tbi &&
     cooler cload tabix --assembly '$assembly'
     #if $format_sel.format == "juicer_medium":
       -c2 7 -p2 8
@@ -42,7 +42,7 @@
   </inputs>
   
   <outputs>
-    <data format="cool" name="output" label="cool file from $input_pairs.name and $input_bed.name"/>
+    <data format="cool" name="output" label="cool file from $format_sel.input_pairs.name and $input_bed.name"/>
   </outputs>
   
   <tests>
