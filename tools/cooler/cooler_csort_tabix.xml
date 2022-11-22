@@ -8,7 +8,7 @@
   <command detect_errors="exit_code"><![CDATA[
     cooler csort -i tabix 
     #if str($format_sel.format) == "juicer_medium":
-      -c1 3 -c2 4 -p1 7 -p2 8
+      -c1 3 -c2 7 -p1 4 -p2 8
     #else:
       -c1 $format_sel.c1 -c2 $format_sel.c2 -p1 $format_sel.p1 -p2 $format_sel.p2
     #end if
