@@ -1,4 +1,4 @@
-<tool id="cooler_cload_tabix" name="cooler_cload_tabix" version="@VERSION@+galaxy0" profile="18.01">
+<tool id="cooler_cload_tabix" name="cooler_cload_tabix" version="@VERSION@+galaxy1" profile="22.05">
   <description> Create a cool file from a tabix-indexed contact file and a list of genomic bins.</description>
   <macros>
     <import>macros.xml</import>
@@ -8,30 +8,35 @@
   <command detect_errors="exit_code"><![CDATA[
     ##set up input files
     ln -s '$input_pairs' pairs.tabix &&
-    #if str( $input_pairs.metadata.tabix_index ) != "None":
-      ln -s '$input_pairs.metadata.tabix_index' pairs.tabix.tbi &&
+    ln -s '$input_pairs.metadata.tabix_index' pairs.tabix.tbi &&
+    cooler cload tabix --assembly '$assembly'
+    #if $format_sel.format == "juicer_medium":
+      -c2 7 -p2 8
     #else:
-      tabix -s $pairs_advanced.c1 -b $pairs_advanced.p1 -e $pairs_advanced.p1 pairs.tabix &&
+      -c2 $format_sel.c2 -p2 $format_sel.p2
     #end if
-    cooler cload tabix --assembly '$assembly' -c2 $c2 -p2 $p2 '$input_bed' pairs.tabix '$output'
+    '$input_bed' pairs.tabix '$output'
     ]]>
   </command>
   <inputs>
-    <param name="input_pairs" multiple="false"  type="data" format="bgzip,tabix" label="Select the output of csort_tabix."/>
-    <section name="pairs_advanced" title="If your input is not already indexed" expanded="False">
-      <param name="c1" type="integer" value="1" label="field number in the input file (starting from 1) of the chromosome of mate 1.">
-        <validator type="in_range" min="1" />
+    <conditional name="format_sel">
+      <param name="format" type="select" label="Format of your input file">
+          <option value="juicer_medium">Juicer Medium Format</option>
+          <option value="other">Other</option>
       </param>
-      <param name="p1" type="integer" value="2" label="field number in the input file (starting from 1) of the position of mate 1.">
-        <validator type="in_range" min="1" />
-      </param>
-    </section>
-    <param name="c2" type="integer" value="3" label="field number in the input file (starting from 1) of the chromosome of mate 2 (same as in csort).">
-      <validator type="in_range" min="1" />
-    </param>
-    <param name="p2" type="integer" value="4" label="field number in the input file (starting from 1) of the position of mate 2 (same as in csort).">
-      <validator type="in_range" min="1" />
-    </param>
+      <when value="juicer_medium">
+        <param name="input_pairs" multiple="false"  type="data" format="juicer_medium_tabix" label="Select the output of csort_tabix."/>
+      </when>
+      <when value="other">
+        <param name="input_pairs" multiple="false"  type="data" format="interval_tabix" label="Select the output of csort_tabix."/>
+        <param name="c2" type="integer" value="3" label="field number in the input file (starting from 1) of the chromosome of mate 2 (same as in csort).">
+          <validator type="in_range" min="1" />
+        </param>
+        <param name="p2" type="integer" value="4" label="field number in the input file (starting from 1) of the position of mate 2 (same as in csort).">
+          <validator type="in_range" min="1" />
+        </param>
+      </when>
+    </conditional>
     <param name="assembly" type="text" label="name of genome assembly"/>
     <param name="input_bed" multiple="false"  type="data" format="bed" label="Select the output of makebins."/>
   </inputs>
@@ -41,17 +46,24 @@
   </outputs>
   
   <tests>
-    <!-- For the moment I cannot test this tool -->
     <test>
-      <param name="input_pairs" value="input.validPairs.tabix" ftype="tabix"/>
+      <conditional name="format_sel">
+        <param name="format" value="juicer_medium"/>
+        <param name="input_pairs" value="input.validPairs.tabix" ftype="juicer_medium_tabix"/>
+      </conditional>
       <param name="input_bed" value="chr19.1M.bins"/>
       <param name="assembly" value="chr19"/>
-      <section name="pairs_advanced">
-        <param name="c1" value="3"/>
-        <param name="p1" value="4"/>
-      </section>
-      <param name="c2" value="7"/>
-      <param name="p2" value="8"/>
+      <output name="output" file="input.cool" compare="sim_size"/>
+    </test>
+    <test>
+      <conditional name="format_sel">
+        <param name="format" value="other"/>
+        <param name="input_pairs" value="input.validPairs.tabix" ftype="juicer_medium_tabix"/>
+        <param name="c2" value="7"/>
+        <param name="p2" value="8"/>
+      </conditional>
+      <param name="input_bed" value="chr19.1M.bins"/>
+      <param name="assembly" value="chr19"/>
       <output name="output" file="input.cool" compare="sim_size"/>
     </test>
   </tests> 
