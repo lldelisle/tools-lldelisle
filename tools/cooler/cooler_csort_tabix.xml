@@ -8,11 +8,11 @@
   <command detect_errors="exit_code"><![CDATA[
     cooler csort -i tabix 
     #if str($format_sel.format) == "juicer_medium":
-      -c1 3 -c2 4 -p1 7 -p2 8
+      -c1 3 -c2 7 -p1 4 -p2 8 -o '$output_juicer'
     #else:
-      -c1 $format_sel.c1 -c2 $format_sel.c2 -p1 $format_sel.p1 -p2 $format_sel.p2
+      -c1 $format_sel.c1 -c2 $format_sel.c2 -p1 $format_sel.p1 -p2 $format_sel.p2 -o '$output'
     #end if
-    -o '$output' '$input'
+    '$input'
     #if str($size_source.size_source_selector) == 'history':
       '$size_source.chromosomeSize'
     #else:
@@ -50,9 +50,6 @@
     <data format="interval_tabix" name="output" label="sorted and indexed contact list of $input.name">
       <actions>
         <conditional name="format_sel.format">
-          <when value="juicer_medium">
-            <action type="format" default="juicer_medium_tabix" />
-          </when>
           <when value="other">
             <action type="metadata" name="chromCol" default="$format_sel.c1"/>
             <action type="metadata" name="startCol" default="$format_sel.p1"/>
@@ -60,6 +57,10 @@
           </when>
          </conditional>
       </actions>
+      <filter>format_sel['format'] == 'other'</filter>
+    </data>
+    <data format="juicer_medium_tabix" name="output_juicer" label="sorted and indexed contact list of $input.name">
+      <filter>format_sel['format'] == 'juicer_medium'</filter>
     </data>
   </outputs>
   
@@ -73,7 +74,7 @@
       <conditional name="format_sel">
         <param name="format" value="juicer_medium"/>
       </conditional>
-      <output name="output" file="input.validPairs.tabix" decompress="true">
+      <output name="output_juicer" file="input.validPairs.tabix" decompress="true">
         <metadata name="chromCol" value="3" />
         <metadata name="startCol" value="4" />
         <metadata name="endCol" value="4" />
