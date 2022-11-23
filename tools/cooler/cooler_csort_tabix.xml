@@ -47,11 +47,11 @@
   </inputs>
   
   <outputs>
-    <data format="interval_tabix" name="output" label="sorted and indexed contact list of $input.name">
+    <data format="interval_tabix.gz" name="output" label="sorted and indexed contact list of $input.name">
       <actions>
         <conditional name="format_sel.format">
           <when value="juicer_medium">
-            <action type="format" default="juicer_medium_tabix" />
+            <action type="format" default="juicer_medium_tabix.gz" />
           </when>
           <when value="other">
             <action type="metadata" name="chromCol" default="$format_sel.c1"/>

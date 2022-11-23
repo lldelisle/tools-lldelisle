@@ -25,10 +25,10 @@
           <option value="other">Other</option>
       </param>
       <when value="juicer_medium">
-        <param name="input_pairs" multiple="false"  type="data" format="juicer_medium_tabix" label="Select the output of csort_tabix."/>
+        <param name="input_pairs" multiple="false"  type="data" format="juicer_medium_tabix.gz" label="Select the output of csort_tabix."/>
       </when>
       <when value="other">
-        <param name="input_pairs" multiple="false"  type="data" format="interval_tabix" label="Select the output of csort_tabix."/>
+        <param name="input_pairs" multiple="false"  type="data" format="interval_tabix.gz" label="Select the output of csort_tabix."/>
         <param name="c2" type="integer" value="3" label="field number in the input file (starting from 1) of the chromosome of mate 2 (same as in csort).">
           <validator type="in_range" min="1" />
         </param>
@@ -49,7 +49,7 @@
     <test>
       <conditional name="format_sel">
         <param name="format" value="juicer_medium"/>
-        <param name="input_pairs" value="input.validPairs.tabix" ftype="juicer_medium_tabix"/>
+        <param name="input_pairs" value="input.validPairs.tabix" ftype="juicer_medium_tabix.gz"/>
       </conditional>
       <param name="input_bed" value="chr19.1M.bins"/>
       <param name="assembly" value="chr19"/>
@@ -58,7 +58,7 @@
     <test>
       <conditional name="format_sel">
         <param name="format" value="other"/>
-        <param name="input_pairs" value="input.validPairs.tabix" ftype="juicer_medium_tabix"/>
+        <param name="input_pairs" value="input.validPairs.tabix" ftype="juicer_medium_tabix.gz"/>
         <param name="c2" value="7"/>
         <param name="p2" value="8"/>
       </conditional>
