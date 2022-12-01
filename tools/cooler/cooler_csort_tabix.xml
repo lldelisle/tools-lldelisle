@@ -1,4 +1,4 @@
-<tool id="cooler_csort_tabix" name="cooler csort with tabix" version="@VERSION@+galaxy0" profile="18.01">
+<tool id="cooler_csort_tabix" name="cooler csort with tabix" version="@VERSION@+galaxy1" profile="22.05">
   <description> Sort and index a contact list.</description>
   <macros>
     <import>macros.xml</import>
@@ -6,7 +6,13 @@
   <expand macro="requirements" />
   <expand macro="stdio" />
   <command detect_errors="exit_code"><![CDATA[
-    cooler csort -i tabix -c1 $c1 -c2 $c2 -p1 $p1 -p2 $p2 -o '$output' '$input'
+    cooler csort -i tabix 
+    #if str($format_sel.format) == "juicer_medium":
+      -c1 3 -c2 7 -p1 4 -p2 8
+    #else:
+      -c1 $format_sel.c1 -c2 $format_sel.c2 -p1 $format_sel.p1 -p2 $format_sel.p2
+    #end if
+    -o '$output' '$input'
     #if str($size_source.size_source_selector) == 'history':
       '$size_source.chromosomeSize'
     #else:
@@ -16,23 +22,45 @@
   </command>
   <inputs>
     <param name="input" multiple="false"  type="data" format="tabular" label="Select a file with the coordinates of the pairs (minimum 4 columns with chromosome and position for each mate)."/>
-    <param name="c1" type="integer" value="1" label="field number in the input file (starting from 1) of the chromosome of mate 1.">
-      <validator type="in_range" min="1" />
-    </param>
-    <param name="p1" type="integer" value="2" label="field number in the input file (starting from 1) of the position of mate 1.">
-      <validator type="in_range" min="1" />
-    </param>
-    <param name="c2" type="integer" value="3" label="field number in the input file (starting from 1) of the chromosome of mate 2.">
-      <validator type="in_range" min="1" />
-    </param>
-    <param name="p2" type="integer" value="4" label="field number in the input file (starting from 1) of the position of mate 2.">
-      <validator type="in_range" min="1" />
-    </param>
+    <conditional name="format_sel">
+        <param name="format" type="select" label="Format of your input file">
+            <option value="juicer_medium">Juicer Medium Format</option>
+            <option value="other">Other</option>
+        </param>
+        <when value="juicer_medium"/>
+        <when value="other">
+          <param name="c1" type="integer" value="1" label="field number in the input file (starting from 1) of the chromosome of mate 1.">
+            <validator type="in_range" min="1" />
+          </param>
+          <param name="p1" type="integer" value="2" label="field number in the input file (starting from 1) of the position of mate 1.">
+            <validator type="in_range" min="1" />
+          </param>
+          <param name="c2" type="integer" value="3" label="field number in the input file (starting from 1) of the chromosome of mate 2.">
+            <validator type="in_range" min="1" />
+          </param>
+          <param name="p2" type="integer" value="4" label="field number in the input file (starting from 1) of the position of mate 2.">
+            <validator type="in_range" min="1" />
+          </param>
+        </when>
+    </conditional>
     <expand macro="size_macro" />
   </inputs>
   
   <outputs>
-    <data format="tabix" name="output" label="sorted and indexed contact list of $input.name"/>
+    <data format="interval_tabix.gz" name="output" label="sorted and indexed contact list of $input.name">
+      <actions>
+        <conditional name="format_sel.format">
+          <when value="juicer_medium">
+            <action type="format" default="juicer_medium_tabix.gz" />
+          </when>
+          <when value="other">
+            <action type="metadata" name="chromCol" default="$format_sel.c1"/>
+            <action type="metadata" name="startCol" default="$format_sel.p1"/>
+            <action type="metadata" name="endCol" default="$format_sel.p1"/>
+          </when>
+         </conditional>
+      </actions>
+    </data>
   </outputs>
   
   <tests>
@@ -42,11 +70,33 @@
         <param name="size_source_selector" value="history"/>
         <param name="chromosomeSize" value="chr19.size"/>
       </conditional>
-      <param name="c1" value="3"/>
-      <param name="p1" value="4"/>
-      <param name="c2" value="7"/>
-      <param name="p2" value="8"/>
-      <output name="output" file="input.validPairs.tabix" decompress="true"/>
+      <conditional name="format_sel">
+        <param name="format" value="juicer_medium"/>
+      </conditional>
+      <output name="output" file="input.validPairs.tabix" decompress="true">
+        <metadata name="chromCol" value="3" />
+        <metadata name="startCol" value="4" />
+        <metadata name="endCol" value="4" />
+      </output>
+    </test>
+    <test>
+      <param name="input" value="input.validPairs.txt"/>
+      <conditional name="size_source">
+        <param name="size_source_selector" value="history"/>
+        <param name="chromosomeSize" value="chr19.size"/>
+      </conditional>
+      <conditional name="format_sel">
+        <param name="format" value="other"/>
+        <param name="c1" value="3"/>
+        <param name="p1" value="4"/>
+        <param name="c2" value="7"/>
+        <param name="p2" value="8"/>
+      </conditional>
+      <output name="output" file="input.validPairs.tabix" decompress="true">
+        <metadata name="chromCol" value="3" />
+        <metadata name="startCol" value="4" />
+        <metadata name="endCol" value="4" />
+      </output>
     </test>
   </tests> 
 
