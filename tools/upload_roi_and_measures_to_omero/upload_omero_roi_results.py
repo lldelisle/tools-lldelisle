@@ -16,6 +16,8 @@ file_base_name_original = re.compile(r'^.*__(\d+)$')
 
 non_roi_value = -1
 
+non_numeric_columns = ['Label', 'Date', 'Version', 'IlastikProject', 'Preprocess']
+
 def get_image_id(image_file_name):
     # Check the file name corresponds to the expected:
     match = file_base_name_exportedTIFF.findall(image_file_name.replace('.tiff', ''))
@@ -154,7 +156,7 @@ def upload(image_id, df, roi_files,
         table_name = "Results_from_Fiji"
         columns = []
         for col_name in df.columns[1:]:
-            if col_name in ['Label', 'Date', 'Version']:
+            if col_name in non_numeric_columns:
                 columns.append(omero.grid.StringColumn(col_name, '', 256, []))
             else:
                 columns.append(omero.grid.DoubleColumn(col_name, '', []))
@@ -175,7 +177,7 @@ def upload(image_id, df, roi_files,
 
         data = []
         for col_name in df.columns[1:]:
-            if col_name in ['Label', 'Date', 'Version']:
+            if col_name in non_numeric_columns:
                 data.append(omero.grid.StringColumn(col_name, '', 256, df[col_name].astype('string').to_list()))
             else:
                 data.append(omero.grid.DoubleColumn(col_name, '', df[col_name].to_list()))
