@@ -125,6 +125,7 @@ def colorBalance(imp){
 def processDirectory(File input_directory, String suffix, Float scale,
                      Float radius_GB, File ilastik_project, Float probability_threshold, Integer min_size_particle,
                      Integer minimum_diameter, Integer closeness_tolerance, Float min_similarity,
+                     Boolean preprocess_image, String ilastik_project_short_name,
                      File output_directory,
                      Boolean headless_mode, Boolean debug, String tool_version) {
     File[] file_list = input_directory.listFiles()
@@ -135,6 +136,7 @@ def processDirectory(File input_directory, String suffix, Float scale,
             processDirectory(file_list[i], suffix, scale,
                              radius_GB, ilastik_project, probability_threshold, min_size_particle,
                              minimum_diameter, closeness_tolerance, min_similarity,
+                             preprocess_image, ilastik_project_short_name,
                              output_directory,
                              headless_mode, debug, tool_version)
         }
@@ -142,6 +144,7 @@ def processDirectory(File input_directory, String suffix, Float scale,
             processImage(file_list[i], scale,
                          radius_GB, ilastik_project, probability_threshold, min_size_particle,
                          minimum_diameter, closeness_tolerance, min_similarity,
+                         preprocess_image, ilastik_project_short_name,
                          output_directory,
                          headless_mode, debug, tool_version)
         } else {
@@ -153,6 +156,7 @@ def processDirectory(File input_directory, String suffix, Float scale,
 def processImage(File image, Float scale,
                  Float radius_GB, File ilastik_project, Float probability_threshold, Integer min_size_particle,
                  Integer minimum_diameter, Integer closeness_tolerance, Float min_similarity,
+                 Boolean preprocess_image, String ilastik_project_short_name,
                  File output_directory,
                  Boolean headless_mode, Boolean debug, String tool_version) {
 
@@ -174,33 +178,45 @@ def processImage(File image, Float scale,
 
     imp.setRoi(0,0,255,255)
 
-    ImagePlus clrBlcd_imp = colorBalance(imp)
-    println "Color balance done !"
-    // make RGB to grey
-    IJ.run(clrBlcd_imp, "16-bit", "")
+    ImagePlus ilastik_input
 
-    ImagePlus gb_imp = clrBlcd_imp.duplicate()
-    gb_imp.setTitle("GB")
+    if (preprocess_image) {
+
+        ImagePlus clrBlcd_imp = colorBalance(imp)
+        println "Color balance done !"
+        // make RGB to grey
+        IJ.run(clrBlcd_imp, "16-bit", "")
+
+        ImagePlus gb_imp = clrBlcd_imp.duplicate()
+        gb_imp.setTitle("GB")
 
 
-    GaussianBlur gb = new GaussianBlur()
-    gb.blur( gb_imp.getProcessor() , radius_GB)
+        GaussianBlur gb = new GaussianBlur()
+        gb.blur( gb_imp.getProcessor() , radius_GB)
 
-    ImagePlus ff_imp = ImageCalculator.run(clrBlcd_imp, gb_imp, "Divide create 32-bit")
-    ff_imp.setTitle(image_basename+"_FF_CB")
+        ImagePlus ff_imp = ImageCalculator.run(clrBlcd_imp, gb_imp, "Divide create 32-bit")
+        ff_imp.setTitle(image_basename+"_FF_CB")
 
-    if (!headless_mode) {
-        ff_imp.show()
+        if (!headless_mode) {
+            ff_imp.show()
+        }
+
+        ilastik_input = ff_imp
+
+    } else {
+        IJ.run(imp, "32-bit", "")
+        ilastik_input = imp
+        
     }
 
     println "Starting ilastik"
 
     // can't work without displaying image
-    // IJ.run("Run Pixel Classification Prediction", "projectfilename="+ilastik_project+" inputimage="+ff_imp.getTitle()+" pixelclassificationtype=Probabilities");
+    // IJ.run("Run Pixel Classification Prediction", "projectfilename="+ilastik_project+" inputimage="+ilastik_input.getTitle()+" pixelclassificationtype=Probabilities");
     //
     // to use in headless_mode more we need to use a commandservice
     def predictions_imgPlus = cmds.run( IlastikPixelClassificationCommand.class , false , 
-                                    'inputImage' , ff_imp , 
+                                    'inputImage' , ilastik_input , 
                                     'projectFileName', ilastik_project , 
                                     'pixelClassificationType', "Probabilities").get().getOutput("predictions")                         
     // to convert the result to ImagePlus : https://gist.github.com/GenevieveBuckley/460d0abc7c1b13eee983187b955330ba
@@ -238,10 +254,12 @@ def processImage(File image, Float scale,
     Date date = new Date()
     String now = date.format("yyyy-MM-dd_HH-mm")
 
-    // Add Date and version
+    // Add Date, version and params
     for ( int row = 0;row<rt.size();row++) {
         rt.setValue("Date", row, now)
         rt.setValue("Version", row, tool_version)
+        rt.setValue("IlastikProject", row, ilastik_project_short_name)
+        rt.setValue("Preprocess", row, "" + preprocess_image)
         rt.setValue("RadiusGB", row, radius_GB)
         rt.setValue("ProbabilityThreshold", row, probability_threshold)
         rt.setValue("MinSizeParticle", row, min_size_particle)
@@ -358,12 +376,13 @@ def processImage(File image, Float scale,
 
 // Specify global variables
 
-String tool_version = "20220826"
+String tool_version = "20221216"
 
 // User set variables
 
 #@ String(visibility=MESSAGE, value="Inputs", required=false) msg
 #@ File(style="directory", label="Directory with images to process") input_directory
+#@ Boolean(label="Preprocess images before ilastik", value=true) preprocess_image
 #@ String(label="Suffix of images to process", description="objective 4x 2.27 on TC microscope for x10 use 0.92 (measured by PierreO)", value="tif") suffix
 #@ Float(label="Scale = measure of a pixel in um", min=0, value=0.92) scale 
 
@@ -371,6 +390,7 @@ String tool_version = "20220826"
 #@ String(visibility=MESSAGE, value="Parameters for segmentation/ROI", required=false) msg2
 #@ Float(label="Radius of Gaussian Blur", min=0, value=200.0) radius_GB
 #@ File(label="Ilastik project") ilastik_project
+#@ String(label="Ilastik project short name") ilastik_project_short_name
 #@ Float(label="Probability threshold for ilastik", min=0, max=1, value=0.4) probability_threshold
 #@ Integer(label="Minimum surface for Analyze Particle", value=5000) min_size_particle
 
@@ -407,6 +427,7 @@ try {
     processDirectory(input_directory, suffix, scale,
                      radius_GB, ilastik_project, probability_threshold, min_size_particle,
                      minimum_diameter, closeness_tolerance, min_similarity,
+                     preprocess_image, ilastik_project_short_name,
                      output_directory,
                      headless_mode, debug, tool_version)
 
