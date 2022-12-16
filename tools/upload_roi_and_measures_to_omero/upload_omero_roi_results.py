@@ -5,10 +5,12 @@ import re
 import tempfile
 
 import numpy as np
+
 import omero
-import pandas as pd
 from omero.gateway import BlitzGateway
 from omero.rtypes import rdouble, rstring
+
+import pandas as pd
 
 file_base_name_exportedTIFF = re.compile(r"^.*__(\d+)__0__0__\d+__\d+$")
 file_base_name_original = re.compile(r"^.*__(\d+)$")
