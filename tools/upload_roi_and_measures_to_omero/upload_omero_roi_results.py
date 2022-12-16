@@ -2,12 +2,13 @@ import argparse
 import json
 import os
 import re
-import pandas as pd
-import numpy as np
 import tempfile
+
+import numpy as np
 import omero
+import pandas as pd
 from omero.gateway import BlitzGateway
-from omero.rtypes import rstring, rdouble
+from omero.rtypes import rdouble, rstring
 
 file_base_name_exportedTIFF = re.compile(r"^.*__(\d+)__0__0__\d+__\d+$")
 file_base_name_original = re.compile(r"^.*__(\d+)$")
