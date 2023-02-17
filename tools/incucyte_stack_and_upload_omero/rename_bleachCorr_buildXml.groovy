@@ -117,7 +117,7 @@ FIRST_ACQUISITION_TIME = "acquisition_time";
 LETTERS = new String("ABCDEFGHIJKLMNOP")
 
 // Version number = date of last modif
-VERSION = "20230216"
+VERSION = "20230217.1"
 
 /** Key-Value pairs namespace */
 GENERAL_ANNOTATION_NAMESPACE = "openmicroscopy.org/omero/client/mapAnnotation";
@@ -360,7 +360,7 @@ def process_well(baseDir, input_wellId, n_image_per_well){ //, perform_bc, media
 		// Re-order to make a multi-channel, time-lapse image
 		ImagePlus final_imp = HyperStackConverter.toHyperStack(merged_imps, channels.size() , 1, nT, "xytcz", "Color");
 		// add properties to the image
-		final_imp.setProperty(DIMENSION_ORDER, DimensionOrder.XYTCZ);
+		final_imp.setProperty(DIMENSION_ORDER, DimensionOrder.XYCZT);
 		final_imp.setProperty(IMG_POS_IN_WELL, wellSampleId);
 		final_imp.setProperty(FIRST_ACQUISITION_DATE, current_images[0].getProperty(FIRST_ACQUISITION_DATE));
 		final_imp.setProperty(FIRST_ACQUISITION_TIME, current_images[0].getProperty(FIRST_ACQUISITION_TIME));
