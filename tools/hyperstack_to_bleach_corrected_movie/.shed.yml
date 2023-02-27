@@ -1,0 +1,7 @@
+categories:
+   - Imaging
+description: Generate blach corrected movie from hyperstack
+name: hyperstack_to_bleach_corrected_movie
+owner: lldelisle
+long_description: Uses a groovy to generate a movie from a hyperstacked image and perform bleach correction if specified
+remote_repository_url: https://github.com/lldelisle/tools-lldelisle/tree/master/tools/hyperstack_to_bleach_corrected_movie

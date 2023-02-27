@@ -1,0 +1,114 @@
+<tool id="hyperstack_to_bleach_corrected_movie" name="Generate movie from hyperstack" version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@" profile="20.01" license="MIT">
+    <description>with bleach correction</description>
+    <macros>
+        <token name="@TOOL_VERSION@">20230224</token>
+        <token name="@VERSION_SUFFIX@">0</token>
+        <xml name="media_change_points">
+            <param name="media_change_points" type="text" value="" label="Indices after which the media was changed separated by comma (1-based)">
+                <sanitizer invalid_char="">
+                    <valid initial="string.digits">
+                        <add value="," />
+                    </valid>
+                </sanitizer>
+                <validator type="regex">[0-9,]*</validator>
+            </param>
+        </xml>
+    </macros>
+    <requirements>
+        <!-- I need CorrectBleach_-2.1.0 which should be in next Fiji version -->
+        <requirement type="package" version="20220414">Fiji</requirement>
+        <requirement type="package" version="5.1.2">ffmpeg</requirement>
+    </requirements>
+    <command detect_errors="exit_code"><![CDATA[
+        ImageJ --ij2 --headless --console --run '$__tool_directory__/'bleach_correction_movie.groovy 
+            'image_filename="${image_filename}",starting_time_hour="${starting_time_hour}",x="${x}",y="${y}",frame_per_second="${frame_per_second}",bleach_cor_channel="${bleach_cor.bleach_cor_channel}",media_change_points="${bleach_cor.media_change_points}",channels_in_film_comma="${channels_in_film}",min_grey="${minmax.min_grey}",max_grey="${minmax.max_grey}",min_green="${minmax.min_green}",max_green="${minmax.max_green}",min_red="${minmax.min_red}",max_red="${minmax.max_red}"' > output.log
+        && ffmpeg -i *avi -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2,format=yuv420p" Movie.mp4
+    ]]></command>
+    <inputs>
+        <param name="image_filename" type="data" format="tiff" multiple="true" label="Stack image to convert" />
+        <param name="starting_time_hour" type="integer" min="0" value="" label="Time of the first time point (in hour)" />
+        <param name="x" type="integer" value="5" label="x position of the time" />
+        <param name="y" type="integer" value="105" label="y position of the time" />
+        <param name="frame_per_second" type="integer" value="2" label="Number of frames per second in avi" />
+        <conditional name="bleach_cor">
+            <param name="bleach_cor_channel" type="select" label="Channel to be bleach corrected" >
+                <option value="None">No need of bleach correction</option>
+                <option value="Green">Green</option>
+                <option value="Red">Red</option>
+                <option value="Grays">Grays</option>
+            </param>
+            <when value="None">
+                <param name="media_change_points" type="hidden" value=""/>
+            </when>
+            <when value="Green">
+                <expand macro="media_change_points"/>
+            </when>
+            <when value="Red">
+                <expand macro="media_change_points"/>
+            </when>
+            <when value="Grays">
+                <expand macro="media_change_points"/>
+            </when>
+        </conditional>
+        <param name="channels_in_film" type="select" label="Channels to include in the movie" multiple="true" display="checkboxes">
+            <option value="Grays">Grays</option>
+            <option value="Green">Green</option>
+            <option value="Red">Red</option>
+        </param>
+        <section name="minmax" title="Set min max display values" expanded="false">
+            <param name="min_grey" type="float" min="-1" value="-1" label="minimum display value for Grays (-1 for auto)" />
+            <param name="max_grey" type="float" min="-1" value="-1" label="maximum display value for Grays (-1 for auto)" />
+            <param name="min_green" type="float" min="-1" value="-1" label="minimum display value for Green (-1 for auto)" />
+            <param name="max_green" type="float" min="-1" value="-1" label="maximum display value for Green (-1 for auto)" />
+            <param name="min_red" type="float" min="-1" value="-1" label="minimum display value for Red (-1 for auto)" />
+            <param name="max_red" type="float" min="-1" value="-1" label="maximum display value for Red (-1 for auto)" />
+        </section>
+    </inputs>
+    <outputs>
+        <data name="logfile" format="txt" from_work_dir="output.log" label="${tool.name} on ${on_string}: logfile" />
+        <data name="movie" format="mp4" from_work_dir="Movie.mp4" label="${tool.name} on ${on_string}: movie" />
+    </outputs>
+    <!-- <tests>
+        <test>
+            <param name="image_filename" value="A2_1_merge.tif"/>
+            <param name="channels_in_film" value="Grays,Green"/>
+            <param name="starting_time_hour" value="96"/>
+            <conditional name="bleach_cor">
+                <param name="bleach_cor_channel" value="Green"/>
+            </conditional>
+            <output name="movie">
+                <assert_contents>
+                    <has_size value="5194567" delta="520000"/>
+                </assert_contents>
+            </output>
+            <output name="logfile">
+                <assert_contents>
+                    <has_text text="-1548.177854902451,-0.01846531789679277,4002.8031422214503"/>
+                </assert_contents>
+            </output>
+        </test>
+    </tests> -->
+    <help><![CDATA[
+
+.. class:: infomark
+
+**What it does**
+
+It will use an image which is a hyperstack where colors of channels are among Grays, Green, Red and performs bleach correction using exponential fit on one channel if requested. It can also perform bleach correction by chunk. Then it adds an overlay with the time in (H)HH:MM format starting at the timepoint requestd by the user. The format of the stack name shoud match prefix_YYYYyMMmDDd_HHhMM.
+
+Usage
+.....
+
+
+**Input**
+
+- An hyperstack image.
+- And different parameters such as the time of the first image, the position for the time label, the channels to use in the film, the channels to bleach correct etc...
+
+**Output**
+
+- A log file with info
+- A movie in avi.
+
+    ]]></help>
+</tool>
