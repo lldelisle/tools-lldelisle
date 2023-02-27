@@ -2,7 +2,7 @@
     <description>with bleach correction</description>
     <macros>
         <token name="@TOOL_VERSION@">20230224</token>
-        <token name="@VERSION_SUFFIX@">0</token>
+        <token name="@VERSION_SUFFIX@">1</token>
         <xml name="media_change_points">
             <param name="media_change_points" type="text" value="" label="Indices after which the media was changed separated by comma (1-based)">
                 <sanitizer invalid_char="">
@@ -16,6 +16,7 @@
     </macros>
     <requirements>
         <!-- I need CorrectBleach_-2.1.0 which should be in next Fiji version -->
+        <!-- If you need it you can remove -->
         <requirement type="package" version="20220414">Fiji</requirement>
         <requirement type="package" version="5.1.2">ffmpeg</requirement>
     </requirements>
@@ -25,7 +26,7 @@
         && ffmpeg -i *avi -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2,format=yuv420p" Movie.mp4
     ]]></command>
     <inputs>
-        <param name="image_filename" type="data" format="tiff" multiple="true" label="Stack image to convert" />
+        <param name="image_filename" type="data" format="tiff" multiple="false" label="Stack image to convert" />
         <param name="starting_time_hour" type="integer" min="0" value="" label="Time of the first time point (in hour)" />
         <param name="x" type="integer" value="5" label="x position of the time" />
         <param name="y" type="integer" value="105" label="y position of the time" />
