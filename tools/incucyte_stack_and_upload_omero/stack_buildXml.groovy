@@ -26,7 +26,7 @@
  * and Lucille Delisle, EPFL - SV - UPDUB
  * and Pierre Osteil, EPFL - SV - UPDUB
  *
- * Last modification: 2023-02-17
+ * Last modification: 2023-03-03
  *
  * = COPYRIGHT =
  * © All rights reserved. ECOLE POLYTECHNIQUE FEDERALE DE LAUSANNE, Switzerland, BioImaging And Optics Platform (BIOP), 2023
@@ -117,7 +117,7 @@ FIRST_ACQUISITION_TIME = "acquisition_time";
 LETTERS = new String("ABCDEFGHIJKLMNOP")
 
 // Version number = date of last modif
-VERSION = "20230217.1"
+VERSION = "20230303"
 
 /** Key-Value pairs namespace */
 GENERAL_ANNOTATION_NAMESPACE = "openmicroscopy.org/omero/client/mapAnnotation";
@@ -204,6 +204,11 @@ try {
 	// get folder and xml file path
 	output_dir_abs = output_dir.getAbsolutePath()
 	incucyteXMLFilePath = incucyteXMLFile.getAbsolutePath()
+
+	if (! new File(incucyteXMLFilePath).exists()) {
+		println "The incucyte file does not exists"
+		return
+	}
 
 	// select the right objective
 	switch (objectiveChoice){
@@ -438,10 +443,12 @@ def makeImage(int index, ImagePlus imagePlus, List<MapPair> keyValues, double pi
 	// The image name is the name of the file without extension
 	image.setName(((String)imagePlus.getProperty(FILE_NAME)).split("\\.")[0]);
 	// Set the acquisitionDate:
-	image.setAcquisitionDate(new Timestamp(imagePlus.getProperty(FIRST_ACQUISITION_DATE) + "T" + imagePlus.getProperty(FIRST_ACQUISITION_TIME)))
-	// Also add it to the key values:
-	keyValues.add(new MapPair("acquisition.day", (String)imagePlus.getProperty(FIRST_ACQUISITION_DATE)))
-	keyValues.add(new MapPair("acquisition.time", (String)imagePlus.getProperty(FIRST_ACQUISITION_TIME)))
+	if (imagePlus.getProperty(FIRST_ACQUISITION_DATE) != "NA") {
+		image.setAcquisitionDate(new Timestamp(imagePlus.getProperty(FIRST_ACQUISITION_DATE) + "T" + imagePlus.getProperty(FIRST_ACQUISITION_TIME)))
+		// Also add it to the key values:
+		keyValues.add(new MapPair("acquisition.day", (String)imagePlus.getProperty(FIRST_ACQUISITION_DATE)))
+		keyValues.add(new MapPair("acquisition.time", (String)imagePlus.getProperty(FIRST_ACQUISITION_TIME)))
+	}
 	// Create <MapAnnotations/>
 	MapAnnotation mapAnnotation = new MapAnnotation();
 	mapAnnotation.setID("ImageKeyValueAnnotation:" + index);
@@ -789,8 +796,9 @@ import ij.plugin.FolderOpener
 import ij.plugin.HyperStackConverter
 import ij.process.LUT;
 
-import java.util.stream.Collectors;
 import java.awt.GraphicsEnvironment
+import java.io.File
+import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import java.util.regex.*
 

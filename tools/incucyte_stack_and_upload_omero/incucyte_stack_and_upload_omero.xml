@@ -1,7 +1,7 @@
 <tool id="incucyte_stack_and_upload_omero" name="Stack Incucyte Plate" version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@" profile="20.01" license="BSD-3">
     <description>And upload to omero</description>
     <macros>
-        <token name="@TOOL_VERSION@">20230217.1</token>
+        <token name="@TOOL_VERSION@">20230303</token>
         <token name="@VERSION_SUFFIX@">0</token>
     </macros>
     <requirements>
@@ -16,10 +16,25 @@
         #set $username = $__user__.extra_preferences.get('omero_account|username', "")
         #set $password = $__user__.extra_preferences.get('omero_account|password', "")
 
-        ## #if $username == "" or $password =="":
-        ##     echo "OMERO connection credentials are empty. Set your credentials via: User -> Preferences -> Manage Information" 1>&2 &&
-        ##     exit 1 &&
-        ## #end if
+        #if str($upload_omero.upload_omero_select) == "yes":
+            #if ($username == "" or $password ==""):
+                echo "OMERO connection credentials are empty. Set your credentials via: User -> Preferences -> Manage Information" 1>&2 &&
+                exit 1 &&
+            #end if
+            #set $incucyteXMLFile = str($upload_omero.incucyteXMLFile)
+            #set $objectiveChoice = str($upload_omero.objectiveChoice)
+            #set $plateName = str($upload_omero.plateName)
+            #set $ignoreConcentration = str($upload_omero.ignoreConcentration)
+            #set $ignorePassage = str($upload_omero.ignorePassage)
+            #set $ignoreSeeding = str($upload_omero.ignoreSeeding)
+        #else
+            #set $incucyteXMLFile = "inexisting.plateMap"
+            #set $objectiveChoice = "4x"
+            #set $plateName = "Experiment:0"
+            #set $ignoreConcentration = "true"
+            #set $ignorePassage = "true"
+            #set $ignoreSeeding = "true"
+        #end if
         
         ## Prefix to directories provided by users
         #set $prefix = "/data/mount_s3/image_storage/"
@@ -35,7 +50,7 @@
                     exit 1 &&
                 #end if
                 mkdir input/Phase/ &&
-                ln -s '${prefix}/${structure.phase_dir_s3}/'* input/Phase/ &&
+                ln -s '${prefix}/${structure.phase_dir_s3}/'*'${structure.pattern}'* input/Phase/ &&
                 #set $original_file = str($structure.phase_dir_s3)
             #end if
             #if str($structure.green_dir_s3) != "":
@@ -44,7 +59,7 @@
                     exit 1 &&
                 #end if
                 mkdir input/Green/ &&
-                ln -s '${prefix}/${structure.green_dir_s3}/'* input/Green/ &&
+                ln -s '${prefix}/${structure.green_dir_s3}/'*'${structure.pattern}'* input/Green/ &&
                 #set $original_file = $original_file + "," + str($structure.green_dir_s3)
             #end if
             #if str($structure.red_dir_s3) != "":
@@ -53,7 +68,7 @@
                     exit 1 &&
                 #end if
                 mkdir input/Red/ &&
-                ln -s '${prefix}/${structure.red_dir_s3}/'* input/Red/ &&
+                ln -s '${prefix}/${structure.red_dir_s3}/'*'${structure.pattern}'* input/Red/ &&
                 #set $original_file = $original_file + "," + str($structure.red_dir_s3)
             #end if
         #else:
@@ -76,12 +91,14 @@
             #end if
         #end if
         ## Run the groovy
-        ImageJ --ij2 --headless --console --run '$__tool_directory__/'rename_bleachCorr_buildXml.groovy 
-            'base_dir="input/",output_dir="output/",incucyteXMLFile="${incucyteXMLFile}",objectiveChoice="${objectiveChoice}",nWells="${nWells}",n_images_per_well="${n_images_per_well}",plateName="${plateName}",commonKeyValues="original_file=${original_file}",xmlName="${plateName}",ignoreConcentration="${ignoreConcentration}",ignorePassage="${ignorePassage}",ignoreSeeding="${ignoreSeeding}"' > output.log
+        ImageJ --ij2 --headless --console --run '$__tool_directory__/'stack_buildXml.groovy 
+            'base_dir="input/",output_dir="output/",incucyteXMLFile="$incucyteXMLFile",objectiveChoice="$objectiveChoice",nWells="${nWells}",n_images_per_well="${n_images_per_well}",plateName="$plateName",commonKeyValues="original_file=${original_file}",xmlName="$plateName",ignoreConcentration="$ignoreConcentration",ignorePassage="$ignorePassage",ignoreSeeding="$ignoreSeeding"' > output.log
         ## Upload to omero
-        && bash '$__tool_directory__/'upload_omero.sh '$omero_host' '$credentials' '$screen.screen_create' '$screen.screenNameOrID' >> output.log
-        ## Copy the companion.ome
-        && cp output/*.companion.ome output.companion.ome
+        #if str($upload_omero.upload_omero_select) == "yes":
+            && bash '$__tool_directory__/'upload_omero.sh '$upload_omero.omero_host' '$credentials' '$upload_omero.screen.screen_create' '$upload_omero.screen.screenNameOrID' >> output.log
+            ## Copy the companion.ome
+            && cp output/*.companion.ome output.companion.ome
+        #end if
     ]]></command>
     <configfiles>
         <configfile name="credentials"><![CDATA[
@@ -101,6 +118,7 @@ $password
                 <param name="phase_dir_s3" type="text" value="" label="Directory on s3 with Phase images (leave empty if no)" help="For example Pierre/EXP001/My_expe_Phase"/>
                 <param name="green_dir_s3" type="text" value="" label="Directory on s3 with Green images (leave empty if no)" help="For example Pierre/EXP001/My_expe_Green"/>
                 <param name="red_dir_s3" type="text" value="" label="Directory on s3 with Red images (leave empty if no)" help="For example Pierre/EXP001/My_expe_Red"/>
+                <param name="pattern" type="text" value="" label="Pattern to restrict to only some wells" help="For example A2"/>
             </when>
             <when value="keyword">
                 <param name="base_dir" type="text" value="" label="Directory on s3 with all images" help="For example Lucille/MyIncucyte/20230213/"/>
@@ -109,49 +127,84 @@ $password
                 <param name="red_key" type="text" value="" label="Word that can identify all Red images (leave empty if no)" help="For example Red or red"/>
             </when>
         </conditional>
-        <param name="incucyteXMLFile" type="data" format="xml" label="Incucyte PlateMap" />
-        <param name="objectiveChoice" type="select" label="Select the objective used">
-            <option value="4x">4x</option>
-            <option value="10x">10x</option>
-            <option value="20x">20x</option>
-        </param>
         <param name="nWells" type="select" label="Number of wells into your plate" >
             <option value="96">96</option>
             <option value="384">384</option>
         </param>
         <param name="n_images_per_well" type="integer" min="1" value="1" label="Maximum number of images per well" />
-        <param name="omero_host" type="text" label="OMERO host URL">
-            <validator type="regex" message="Enter a valid host location, for example, your.omero.server">^[a-zA-Z0-9._-]*$</validator>
-            <validator type="expression" message="No two dots (..) allowed">'..' not in value</validator>
-        </param>
-        <param name="plateName" type="text" value="Experiment:0" label="Name of the plate (on omero)" />
-        <conditional name="screen">
-            <param name="screen_create" type="select" label="Create the screen on OMERO or use existing one">
-                <option value="create">Create a new one</option>
-                <option value="exists">Use an existing one</option>
+        <conditional name="upload_omero">
+            <param name="upload_omero_select" type="select" label="Upload your images to omero?" >
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
             </param>
-            <when value="create">
-                <param name="screenNameOrID" type="text" value="MyNewScreen" label="Name of the screen (on omero)" />
+            <when value="yes">
+                <param name="incucyteXMLFile" type="data" format="xml" label="Incucyte PlateMap" />
+                <param name="objectiveChoice" type="select" label="Select the objective used">
+                    <option value="4x">4x</option>
+                    <option value="10x">10x</option>
+                    <option value="20x">20x</option>
+                </param>
+                <param name="omero_host" type="text" label="OMERO host URL">
+                    <validator type="regex" message="Enter a valid host location, for example, your.omero.server">^[a-zA-Z0-9._-]*$</validator>
+                    <validator type="expression" message="No two dots (..) allowed">'..' not in value</validator>
+                </param>
+                <param name="plateName" type="text" value="Experiment:0" label="Name of the plate (on omero)" />
+                <conditional name="screen">
+                    <param name="screen_create" type="select" label="Create the screen on OMERO or use existing one">
+                        <option value="create">Create a new one</option>
+                        <option value="exists">Use an existing one</option>
+                    </param>
+                    <when value="create">
+                        <param name="screenNameOrID" type="text" value="MyNewScreen" label="Name of the screen (on omero)" />
+                    </when>
+                    <when value="exists">
+                        <param name="screenNameOrID" type="integer" min="0" value="605" label="ID of the screen (on omero)" />
+                    </when>
+                </conditional>
+                <param name="get_stacks_in_galaxy" type="boolean" checked="false" label="Get stacks in galaxy" />
+                <param name="ignoreConcentration" type="boolean" checked="true" label="Ignore the concentration of compounds from the plateMap" />
+                <param name="ignorePassage" type="boolean" checked="true" label="Ignore the passage number of Cells from the plateMap" />
+                <param name="ignoreSeeding" type="boolean" checked="true" label="Ignore the seeding concentration of Cells from the plateMap" />
             </when>
-            <when value="exists">
-                <param name="screenNameOrID" type="integer" min="0" value="605" label="ID of the screen (on omero)" />
+            <when value="no">
+                <param name="get_stacks_in_galaxy" type="hidden" value="true"/>
             </when>
         </conditional>
-        <param name="get_stacks_in_galaxy" type="boolean" checked="false" label="Get stacks in galaxy" />
-        <param name="ignoreConcentration" type="boolean" checked="true" label="Ignore the concentration of compounds from the plateMap" />
-        <param name="ignorePassage" type="boolean" checked="true" label="Ignore the passage number of Cells from the plateMap" />
-        <param name="ignoreSeeding" type="boolean" checked="true" label="Ignore the seeding concentration of Cells from the plateMap" />
     </inputs>
     <outputs>
         <data name="logfile" format="txt" from_work_dir="output.log" label="${tool.name} on ${on_string}: logfile" />
         <collection name="list_output" type="list" label="${tool.name} on ${on_string}: Stacks">
             <discover_datasets pattern="(?P&lt;designation&gt;.+)\.tif" directory="output/" ext="tiff" />
-            <filter>get_stacks_in_galaxy</filter>
+            <filter>upload_omero['get_stacks_in_galaxy']</filter>
         </collection>
         <data format="xml" name="companion_ome" from_work_dir="output.companion.ome" label="${tool.name} on ${on_string}: companion.ome" >
-            <filter>get_stacks_in_galaxy</filter>
+            <filter>upload_omero['get_stacks_in_galaxy'] and upload_omero['upload_omero_select'] == "yes"</filter>
         </data>
     </outputs>
+    <tests>
+        <test>
+            <conditional name="structure">
+                <param name="structure_type" value="directory"/>
+                <param name="phase_dir_s3" value="tutu_Phase"/>
+                <param name="green_dir_s3" value="toto_Green"/>
+            </conditional>
+            <conditional name="upload_omero">
+                <param name="upload_omero_select" value="no"/>
+            </conditional>
+            <output name="logfile">
+                <assert_contents>
+                    <has_line line="No match for B1"/>
+                </assert_contents>
+            </output>
+            <output_collection name="list_output" type="list" count="1">
+                <element name="A1_1_merge" ftype="tiff">
+                <assert_contents>
+                    <has_size value="17574881" delta="1500000"/>
+                </assert_contents>
+                </element>
+            </output_collection>
+        </test>
+    </tests>
     <help><![CDATA[
 
 .. class:: infomark
