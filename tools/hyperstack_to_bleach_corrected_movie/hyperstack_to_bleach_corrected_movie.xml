@@ -1,7 +1,7 @@
 <tool id="hyperstack_to_bleach_corrected_movie" name="Generate movie from hyperstack" version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@" profile="20.01" license="MIT">
     <description>with bleach correction</description>
     <macros>
-        <token name="@TOOL_VERSION@">20230224</token>
+        <token name="@TOOL_VERSION@">20230309</token>
         <token name="@VERSION_SUFFIX@">1</token>
         <xml name="media_change_points">
             <param name="media_change_points" type="text" value="" label="Indices after which the media was changed separated by comma (1-based)">
@@ -57,12 +57,12 @@
             <option value="Red">Red</option>
         </param>
         <section name="minmax" title="Set min max display values" expanded="false">
-            <param name="min_grey" type="float" min="-1" value="-1" label="minimum display value for Grays (-1 for auto)" />
-            <param name="max_grey" type="float" min="-1" value="-1" label="maximum display value for Grays (-1 for auto)" />
-            <param name="min_green" type="float" min="-1" value="-1" label="minimum display value for Green (-1 for auto)" />
-            <param name="max_green" type="float" min="-1" value="-1" label="maximum display value for Green (-1 for auto)" />
-            <param name="min_red" type="float" min="-1" value="-1" label="minimum display value for Red (-1 for auto)" />
-            <param name="max_red" type="float" min="-1" value="-1" label="maximum display value for Red (-1 for auto)" />
+            <param name="min_grey" type="float" min="-1" max="65535" value="-1" label="minimum display value for Grays (-1 for auto)" />
+            <param name="max_grey" type="float" min="-1" max="65535" value="-1" label="maximum display value for Grays (-1 for auto)" />
+            <param name="min_green" type="float" min="-1" max="65535" value="-1" label="minimum display value for Green (-1 for auto)" />
+            <param name="max_green" type="float" min="-1" max="65535" value="-1" label="maximum display value for Green (-1 for auto)" />
+            <param name="min_red" type="float" min="-1" max="65535" value="-1" label="minimum display value for Red (-1 for auto)" />
+            <param name="max_red" type="float" min="-1" max="65535" value="-1" label="maximum display value for Red (-1 for auto)" />
         </section>
     </inputs>
     <outputs>
