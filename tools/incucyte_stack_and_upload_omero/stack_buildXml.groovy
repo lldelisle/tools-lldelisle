@@ -26,7 +26,7 @@
  * and Lucille Delisle, EPFL - SV - UPDUB
  * and Pierre Osteil, EPFL - SV - UPDUB
  *
- * Last modification: 2023-03-03
+ * Last modification: 2023-03-10
  *
  * = COPYRIGHT =
  * © All rights reserved. ECOLE POLYTECHNIQUE FEDERALE DE LAUSANNE, Switzerland, BioImaging And Optics Platform (BIOP), 2023
@@ -117,7 +117,7 @@ FIRST_ACQUISITION_TIME = "acquisition_time";
 LETTERS = new String("ABCDEFGHIJKLMNOP")
 
 // Version number = date of last modif
-VERSION = "20230303"
+VERSION = "20230310"
 
 /** Key-Value pairs namespace */
 GENERAL_ANNOTATION_NAMESPACE = "openmicroscopy.org/omero/client/mapAnnotation";
@@ -324,6 +324,8 @@ def process_well(baseDir, input_wellId, n_image_per_well){ //, perform_bc, media
 						assert single_channel_imp.getNSlices() == nT : "The number of "+channels_list.get(i)+" images for well "+input_wellId+" and field " + wellSampleId + " does not match the number of images in " + first_channel + "."
 					}
 					// Get the first date
+					// Sort the files_matching
+					Collections.sort(files_matching)
 					Pattern date_pattern = Pattern.compile(REGEX_FOR_DATE)
 					Matcher date_m = date_pattern.matcher(files_matching[0].getName())
 					if (date_m.matches()) {
