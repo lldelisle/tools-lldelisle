@@ -119,7 +119,7 @@ RELATIVE_ACQUISITION_HOUR = "relative_acquisition_hour"
 LETTERS = new String("ABCDEFGHIJKLMNOP")
 
 // Version number = date of last modif
-VERSION = "20230320.1"
+VERSION = "20230320.2"
 
 /** Key-Value pairs namespace */
 GENERAL_ANNOTATION_NAMESPACE = "openmicroscopy.org/omero/client/mapAnnotation"
@@ -336,8 +336,8 @@ def process_well(baseDir, input_wellId, n_image_per_well){ //, perform_bc, media
 							dateTime_ref = getDate(label, date_pattern)
 						}
 						if (dateTime_ref != null) {
-							first_acq_date = dateTime_ref.getYear() + "-" + dateTime_ref.getMonth() + "-" + dateTime_ref.getDayOfMonth()
-							first_acq_time = dateTime_ref.getHour() + ":" + dateTime_ref.getMinute() + ":00"
+							first_acq_date = dateTime_ref.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
+							first_acq_time = dateTime_ref.format(DateTimeFormatter.ofPattern("HH:MM:SS"))
 							for (int ti = 2; ti<= nT; ti++) {
 								// Process each frame starting at 2
 								single_channel_imp.setSlice(ti)
@@ -359,6 +359,8 @@ def process_well(baseDir, input_wellId, n_image_per_well){ //, perform_bc, media
 					single_channel_imp.setProperty(FIRST_ACQUISITION_DATE, first_acq_date)
 					single_channel_imp.setProperty(FIRST_ACQUISITION_TIME, first_acq_time)
 					single_channel_imp.setProperty(RELATIVE_ACQUISITION_HOUR, rel_acq_hour)
+					println single_channel_imp.getProperty(FIRST_ACQUISITION_DATE)
+					println single_channel_imp.getProperty(FIRST_ACQUISITION_TIME)
 					// add the image stack to the channel map for the corresponding color
 					channelMap.put(channels_list.get(i), single_channel_imp)
 				}
@@ -853,6 +855,7 @@ import ij.process.LUT
 
 import java.awt.GraphicsEnvironment
 import java.io.File
+import java.time.format.DateTimeFormatter
 import java.time.LocalDateTime
 import java.time.temporal.ChronoUnit
 import java.util.stream.Collectors
