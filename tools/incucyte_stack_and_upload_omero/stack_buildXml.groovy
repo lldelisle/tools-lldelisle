@@ -26,7 +26,7 @@
  * and Lucille Delisle, EPFL - SV - UPDUB
  * and Pierre Osteil, EPFL - SV - UPDUB
  *
- * Last modification: 2023-03-10
+ * Last modification: 2023-03-20
  *
  * = COPYRIGHT =
  * © All rights reserved. ECOLE POLYTECHNIQUE FEDERALE DE LAUSANNE, Switzerland, BioImaging And Optics Platform (BIOP), 2023
@@ -117,7 +117,7 @@ FIRST_ACQUISITION_TIME = "acquisition_time"
 LETTERS = new String("ABCDEFGHIJKLMNOP")
 
 // Version number = date of last modif
-VERSION = "20230310"
+VERSION = "20230320"
 
 /** Key-Value pairs namespace */
 GENERAL_ANNOTATION_NAMESPACE = "openmicroscopy.org/omero/client/mapAnnotation"
