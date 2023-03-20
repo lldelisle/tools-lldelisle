@@ -324,10 +324,13 @@ def process_well(baseDir, input_wellId, n_image_per_well){ //, perform_bc, media
 						assert single_channel_imp.getNSlices() == nT : "The number of "+channels_list.get(i)+" images for well "+input_wellId+" and field " + wellSampleId + " does not match the number of images in " + first_channel + "."
 					}
 					// Get the first date
-					// Sort the files_matching
-					Collections.sort(files_matching)
+					// Go to the first time (which is slice)
+					single_channel_imp.setSlice(1)
+					ImageStack stack = single_channel_imp.getStack()
+					int currentSlice = single_channel_imp.getCurrentSlice()
+					String label = stack.getShortSliceLabel(currentSlice)
 					Pattern date_pattern = Pattern.compile(REGEX_FOR_DATE)
-					Matcher date_m = date_pattern.matcher(files_matching[0].getName())
+					Matcher date_m = date_pattern.matcher(label)
 					if (date_m.matches()) {
 						single_channel_imp.setProperty(FIRST_ACQUISITION_DATE, date_m.group(1) + "-" + date_m.group(2) + "-" + date_m.group(3))
 						single_channel_imp.setProperty(FIRST_ACQUISITION_TIME, date_m.group(4) + ":" + date_m.group(5) + ":00")
