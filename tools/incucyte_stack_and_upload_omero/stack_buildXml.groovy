@@ -88,7 +88,6 @@
 #@ Boolean(label="Ignore Compound concentration from plateMap", value=true) ignoreConcentration
 #@ Boolean(label="Ignore Cell passage number from plateMap", value=true) ignorePassage
 #@ Boolean(label="Ignore Cell seeding concentration from plateMap", value=true) ignoreSeeding
-#@ Boolean verbose = true
 
 
 /**
@@ -104,7 +103,9 @@ objectives = new String[]{"4x", "10x", "20x"}
 pixelSizes = new double[]{2.82, 1.24, 0.62}
 
 /** pattern for date */
-REGEX_FOR_DATE = ".*_([0-9]{4})y([0-9]{2})m([0-9]{2})d_([0-9]{2})h([0-9]{2})m.tif"
+REGEX_FOR_DATE = ".*_([0-9]{4})y([0-9]{2})m([0-9]{2})d_([0-9]{2})h([0-9]{2})m"
+
+ALTERNATIVE_REGEX_FOR_DATE = ".*_([0-9]{2})d([0-9]{2})h([0-9]{2})m"
 
 /** Image properties keys */
 DIMENSION_ORDER = "dimension_order"
@@ -112,12 +113,13 @@ FILE_NAME = "file_name"
 IMG_POS_IN_WELL = "img_pos_in_well"
 FIRST_ACQUISITION_DATE = "acquisition_date"
 FIRST_ACQUISITION_TIME = "acquisition_time"
+RELATIVE_ACQUISITION_HOUR = "relative_acquisition_hour"
 
 /** global variable for index to letter conversion */
 LETTERS = new String("ABCDEFGHIJKLMNOP")
 
 // Version number = date of last modif
-VERSION = "20230320"
+VERSION = "20230320.1"
 
 /** Key-Value pairs namespace */
 GENERAL_ANNOTATION_NAMESPACE = "openmicroscopy.org/omero/client/mapAnnotation"
@@ -166,8 +168,6 @@ try {
 	String[] well = []
 
 	well = [(0..(nRows - 1)),(0..(nCols - 1))].combinations().collect{ r,c -> 	LETTERS.substring(r, r + 1) +""+ (c+ 1).toString() }
-
-	if (verbose) println well
 
 	IJ.run("Close All", "")
 
@@ -295,6 +295,9 @@ def process_well(baseDir, input_wellId, n_image_per_well){ //, perform_bc, media
 		// nT is the number of time-points for the well input_wellId
 		int nT = 0
 		String first_channel = ""
+		String first_acq_date = ""
+		String first_acq_time = ""
+		String rel_acq_hour = ""
 
 		// Initiate a channel map for the wellSampleId
 		Map<String, ImagePlus> channelMap = new TreeMap<>()
@@ -304,7 +307,7 @@ def process_well(baseDir, input_wellId, n_image_per_well){ //, perform_bc, media
 		// and to the wellSampleId
 		// The image name should be:
 		// Prefix + "_" + input_wellId + "_" + wellSampleId + "_" + year (4 digits) + "y" + month (2 digits) + "m" + day + "d_" + hour + "h" + minute + "m.tif"
-		FileFilter fileFilter = new WildcardFileFilter("*_" + input_wellId + "_"+wellSampleId+"_*")
+		FileFilter fileFilter = new WildcardFileFilter("*_" + input_wellId + "_" + wellSampleId + "_*")
 		for(int i = 0; i < folder_list.size(); i++){
 			if (folder_list.get(i) != null) {
 				File[] files_matching = folder_list.get(i).listFiles(fileFilter as FileFilter)
@@ -320,24 +323,42 @@ def process_well(baseDir, input_wellId, n_image_per_well){ //, perform_bc, media
 						// This is the first channel with images
 						nT = single_channel_imp.getNSlices()
 						first_channel = channels_list.get(i)
+						// Process all dates:
+						Pattern date_pattern = Pattern.compile(REGEX_FOR_DATE)
+						ImageStack stack = single_channel_imp.getStack()
+						// Go to the first time (which is slice)
+						single_channel_imp.setSlice(1)
+						int currentSlice = single_channel_imp.getCurrentSlice()
+						String label = stack.getShortSliceLabel(currentSlice)
+						LocalDateTime dateTime_ref = getDate(label, date_pattern)
+						if (dateTime_ref == null) {
+							date_pattern = Pattern.compile(ALTERNATIVE_REGEX_FOR_DATE)
+							dateTime_ref = getDate(label, date_pattern)
+						}
+						if (dateTime_ref != null) {
+							first_acq_date = dateTime_ref.getYear() + "-" + dateTime_ref.getMonth() + "-" + dateTime_ref.getDayOfMonth()
+							first_acq_time = dateTime_ref.getHour() + ":" + dateTime_ref.getMinute() + ":00"
+							for (int ti = 2; ti<= nT; ti++) {
+								// Process each frame starting at 2
+								single_channel_imp.setSlice(ti)
+								int hours = getHoursFromImp(single_channel_imp, stack, dateTime_ref, date_pattern)
+								if (rel_acq_hour == "") {
+									rel_acq_hour = "" + hours
+								} else {
+									rel_acq_hour += "," + hours
+								}
+							}
+						} else {
+							first_acq_date = "NA"
+							first_acq_time = "NA"
+						}
 					} else {
 						assert single_channel_imp.getNSlices() == nT : "The number of "+channels_list.get(i)+" images for well "+input_wellId+" and field " + wellSampleId + " does not match the number of images in " + first_channel + "."
 					}
-					// Get the first date
-					// Go to the first time (which is slice)
-					single_channel_imp.setSlice(1)
-					ImageStack stack = single_channel_imp.getStack()
-					int currentSlice = single_channel_imp.getCurrentSlice()
-					String label = stack.getShortSliceLabel(currentSlice)
-					Pattern date_pattern = Pattern.compile(REGEX_FOR_DATE)
-					Matcher date_m = date_pattern.matcher(label)
-					if (date_m.matches()) {
-						single_channel_imp.setProperty(FIRST_ACQUISITION_DATE, date_m.group(1) + "-" + date_m.group(2) + "-" + date_m.group(3))
-						single_channel_imp.setProperty(FIRST_ACQUISITION_TIME, date_m.group(4) + ":" + date_m.group(5) + ":00")
-					} else {
-						single_channel_imp.setProperty(FIRST_ACQUISITION_DATE, "NA")
-						single_channel_imp.setProperty(FIRST_ACQUISITION_TIME, "NA")
-					}
+					// Set acquisition properties
+					single_channel_imp.setProperty(FIRST_ACQUISITION_DATE, first_acq_date)
+					single_channel_imp.setProperty(FIRST_ACQUISITION_TIME, first_acq_time)
+					single_channel_imp.setProperty(RELATIVE_ACQUISITION_HOUR, rel_acq_hour)
 					// add the image stack to the channel map for the corresponding color
 					channelMap.put(channels_list.get(i), single_channel_imp)
 				}
@@ -374,6 +395,7 @@ def process_well(baseDir, input_wellId, n_image_per_well){ //, perform_bc, media
 		final_imp.setProperty(IMG_POS_IN_WELL, wellSampleId)
 		final_imp.setProperty(FIRST_ACQUISITION_DATE, current_images[0].getProperty(FIRST_ACQUISITION_DATE))
 		final_imp.setProperty(FIRST_ACQUISITION_TIME, current_images[0].getProperty(FIRST_ACQUISITION_TIME))
+		final_imp.setProperty(RELATIVE_ACQUISITION_HOUR, current_images[0].getProperty(RELATIVE_ACQUISITION_HOUR))
 
 		// set LUTs
 		(0..channels.size()-1).each{
@@ -453,6 +475,7 @@ def makeImage(int index, ImagePlus imagePlus, List<MapPair> keyValues, double pi
 		// Also add it to the key values:
 		keyValues.add(new MapPair("acquisition.day", (String)imagePlus.getProperty(FIRST_ACQUISITION_DATE)))
 		keyValues.add(new MapPair("acquisition.time", (String)imagePlus.getProperty(FIRST_ACQUISITION_TIME)))
+		keyValues.add(new MapPair("relative.acquisition.hours", (String)imagePlus.getProperty(RELATIVE_ACQUISITION_HOUR)))
 	}
 	// Create <MapAnnotations/>
 	MapAnnotation mapAnnotation = new MapAnnotation()
@@ -785,6 +808,32 @@ def convertLetterToNumber(String letter){
 	return -1
 }
 
+// Returns a date from a label and a date_pattern
+def getDate(String label, Pattern date_pattern){
+	Matcher date_m = date_pattern.matcher(label)
+	LocalDateTime dateTime
+	if (date_m.matches()) {
+		if (date_m.groupCount() == 5) {
+			dateTime = LocalDateTime.parse(date_m.group(1) + "-" + date_m.group(2) + "-" + date_m.group(3) + "T" + date_m.group(4) + ":" + date_m.group(5))
+		} else {
+			dateTime = LocalDateTime.parse("1970-01-" + 1 + (date_m.group(1) as int) + "T" + date_m.group(2) + ":" + date_m.group(3))
+		}
+	}
+	return dateTime
+}
+
+// Returns the number of hours
+def getHoursFromImp(ImagePlus imp, ImageStack stack, LocalDateTime dateTime_ref, Pattern date_pattern){
+	int currentSlice = imp.getCurrentSlice()
+	String label = stack.getShortSliceLabel(currentSlice)
+	LocalDateTime dateTime = getDate(label, date_pattern)
+	if (dateTime != null) {
+		return ChronoUnit.HOURS.between(dateTime_ref, dateTime) as int
+	} else {
+		return -1
+	}
+}
+
 
 /**
  * *****************************************************************************************************************
@@ -804,6 +853,8 @@ import ij.process.LUT
 
 import java.awt.GraphicsEnvironment
 import java.io.File
+import java.time.LocalDateTime
+import java.time.temporal.ChronoUnit
 import java.util.stream.Collectors
 import java.util.stream.IntStream
 import java.util.regex.*

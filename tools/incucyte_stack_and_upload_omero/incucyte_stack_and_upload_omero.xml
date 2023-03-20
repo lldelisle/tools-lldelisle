@@ -1,7 +1,7 @@
 <tool id="incucyte_stack_and_upload_omero" name="Stack Incucyte Plate" version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@" profile="20.01" license="BSD-3">
     <description>And upload to omero</description>
     <macros>
-        <token name="@TOOL_VERSION@">20230320</token>
+        <token name="@TOOL_VERSION@">20230320.1</token>
         <token name="@VERSION_SUFFIX@">0</token>
     </macros>
     <requirements>
