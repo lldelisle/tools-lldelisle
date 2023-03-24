@@ -1,8 +1,8 @@
 <tool id="hyperstack_to_bleach_corrected_movie" name="Generate movie from hyperstack" version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@" profile="20.01" license="MIT">
     <description>with bleach correction</description>
     <macros>
-        <token name="@TOOL_VERSION@">20230309</token>
-        <token name="@VERSION_SUFFIX@">1</token>
+        <token name="@TOOL_VERSION@">20230324</token>
+        <token name="@VERSION_SUFFIX@">0</token>
         <xml name="media_change_points">
             <param name="media_change_points" type="text" value="" label="Indices after which the media was changed separated by comma (1-based)">
                 <sanitizer invalid_char="">

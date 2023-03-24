@@ -119,6 +119,8 @@ def getStringFromImp(ImagePlus imp, ImageStack stack, LocalDateTime dateTime_ref
 #@ Double(label="minimum display value for Red (-1 for auto)", value=-1) min_red
 #@ Double(label="maximum display value for Red (-1 for auto)", value=-1) max_red
 
+IJ.run("Close All", )
+
 // Convert to list
 String[] channels_in_film = channels_in_film_comma.split(',')
 // Open the image
@@ -217,9 +219,20 @@ if (dateTime_ref != null) {
 		// Process each frame
 		final_imp.setT(i)
 		label = getStringFromImp(final_imp, stack, dateTime_ref, starting_time_hour, date_pattern)
-		txtroi = new TextRoi( x , y ,  label,  new Font("SansSerif", Font.PLAIN, 100) )
-	    txtroi.setPosition(1, 1, i)
-	    ov.add( txtroi  )
+		if (final_imp.nChannels > 1) {
+			// Use overlay:
+			txtroi = new TextRoi(x, y,  label,  new Font("SansSerif", Font.PLAIN, 100) )
+		    txtroi.setPosition(1, 1, i)
+		    ov.add( txtroi  )
+		} else {
+			// Use image processor:
+			final_imp.setT(i)
+			ImageProcessor ip = final_imp.getProcessor()
+			ip.setFont(new Font("SansSerif", Font.PLAIN, 100))
+			ip.setAntialiasedText(true)
+	        ip.moveTo(x, y)
+	        ip.drawString(label)
+		}
 	}
 }
 if (! GraphicsEnvironment.isHeadless()){
