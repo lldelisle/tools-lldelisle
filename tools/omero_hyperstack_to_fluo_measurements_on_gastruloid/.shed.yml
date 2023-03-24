@@ -1,0 +1,7 @@
+categories:
+   - Imaging
+description: Analyse Hyperstack on OMERO server to measure fluorescence levels
+name: omero_hyperstack_to_fluo_measurements_on_gastruloid
+owner: lldelisle
+long_description: Uses a groovy to analyse hyperstacks from OMERO and using ROIs put by the tool omero_hyperstack_to_gastruloid_measurements. It will measure fluorescence on the gastruloid and outside of it. Then, it will cut the gastruloid into segments along the spine and measure fluorescence levels on each segment.
+remote_repository_url: https://github.com/lldelisle/tools-lldelisle/tree/master/tools/omero_hyperstack_to_fluo_measurements_on_gastruloid

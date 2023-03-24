@@ -1,0 +1,7 @@
+categories:
+   - Imaging
+description: Analyse Hyperstack on OMERO server to segment gastruloid and compute measurements
+name: omero_hyperstack_to_gastruloid_measurements
+owner: lldelisle
+long_description: Uses a groovy to get images from OMERO, use an ilastik project to get propability and generate a mask. The potential gastruloids will be indentified by analyze Particles. On each ROI, the elongation index will be computed.
+remote_repository_url: https://github.com/lldelisle/tools-lldelisle/tree/master/tools/omero_hyperstack_to_gastruloid_measurements
