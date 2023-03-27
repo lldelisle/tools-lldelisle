@@ -2,9 +2,9 @@
     <description>with bleach correction</description>
     <macros>
         <token name="@TOOL_VERSION@">20230324</token>
-        <token name="@VERSION_SUFFIX@">0</token>
+        <token name="@VERSION_SUFFIX@">1</token>
         <xml name="media_change_points">
-            <param name="media_change_points" type="text" value="" label="Indices after which the media was changed separated by comma (1-based)">
+            <param name="media_change_points" type="text" value="" label="Indices of frames just before the media was changed separated by comma (1-based excluding last index)">
                 <sanitizer invalid_char="">
                     <valid initial="string.digits">
                         <add value="," />
@@ -16,7 +16,7 @@
     </macros>
     <requirements>
         <!-- I need CorrectBleach_-2.1.0 which should be in next Fiji version -->
-        <!-- If you need it you can remove -->
+        <!-- If you need it you can download https://maven.scijava.org/service/local/repositories/releases/content/sc/fiji/CorrectBleach_/2.1.0/CorrectBleach_-2.1.0.jar into plugins -->
         <requirement type="package" version="20220414">Fiji</requirement>
         <requirement type="package" version="5.1.2">ffmpeg</requirement>
     </requirements>
