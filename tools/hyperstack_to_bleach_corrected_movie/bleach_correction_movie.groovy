@@ -11,6 +11,7 @@ import ij.plugin.Duplicator
 import ij.plugin.HyperStackConverter
 import ij.plugin.filter.AVI_Writer
 import ij.process.ImageProcessor
+import ij.process.ImageStatistics
 import ij.util.FontUtil
 
 import java.awt.*
@@ -36,6 +37,19 @@ channel_name_to_keyword.put("Grays", "white")
 channel_name_to_keyword.put("Green", "green")
 channel_name_to_keyword.put("Red", "red")
 
+// Compute median
+def median(numArray) {
+
+	Arrays.sort(numArray)
+	double median
+	if (numArray.size() % 2 == 0) {
+		median = ((double)numArray[numArray.size() / 2] + (double)numArray[numArray.size() / 2 - 1]) / 2
+	} else {
+		median = (double) numArray[numArray.size() / 2]
+	}
+	return median
+}
+
 // This is from Romain Guiet, BIOP, EPFL
 // Amended by Lucille
 /*
@@ -44,7 +58,7 @@ channel_name_to_keyword.put("Red", "red")
  * Please seperate values using commas "," eg "7,15" , in that example it means that the media was changed after time-point 7 and  15 a  fit should be computed from 1-7 , 8-15, 16-end) 
  * Returns an ImagePlus
  */
-def bleachCorr(imp, mediaChangeTime){
+def bleachCorr(ImagePlus imp, String mediaChangeTime, Boolean normalizeToFirstChunk){
 	// from user input prepare array with time-points when media was change
 	ArrayList<int> time_array = [0] // initialize at 0
 	if (!mediaChangeTime.equals("")) {
@@ -60,11 +74,49 @@ def bleachCorr(imp, mediaChangeTime){
 	}
 	// process the time-lapse, eventually by "block" defined above
 	ArrayList<ImagePlus> corr_imps = []
+	double ref_value = 0.0
 	(0..time_array.size()-2).each{
 		//println time_array[it]+1 +","+time_array[it+1]
-		ImagePlus corr_imp = new Duplicator().run(imp, 1, 1, 1 , 1 , time_array[it]+1 , time_array[it+1] );	
-		def BCE = new BleachCorrection_ExpoFit(corr_imp) 
-		BCE.core()
+		// Create an ImagePlus with the "block"
+		ImagePlus corr_imp = new Duplicator().run(imp, 1, 1, 1 , 1 , time_array[it]+1 , time_array[it+1] )
+		if (time_array[it]+1 != time_array[it+1]) {
+			// If more than one frame, compute Bleach correction
+			def BCE = new BleachCorrection_ExpoFit(corr_imp) 
+			BCE.core()
+		}
+		if (normalizeToFirstChunk) {
+			// Before adding to the ArrayList, it will be normalized to the median
+			// values of the first chunk
+			if (it == 0) {
+				// Get the median
+				ArrayList<Float> all_values = []
+				for (int i = 0; i < corr_imp.getStackSize(); i++) {
+					ImageProcessor curip = corr_imp.getImageStack().getProcessor(i + 1)
+					ImageStatistics imgstat = curip.getStatistics()
+					all_values.add(imgstat.mean)
+				}
+				ref_value = median(all_values)
+				// println ref_value
+			} else {
+				// First get the median
+				all_values = []
+				for (int i = 0; i < corr_imp.getStackSize(); i++) {
+					curip = corr_imp.getImageStack().getProcessor(i + 1)
+					imgstat = curip.getStatistics()
+					all_values.add(imgstat.mean)
+				}
+				cur_value = median(all_values)
+				// println "New value is" + cur_value
+				double ratio = ref_value / cur_value
+				println ratio
+				// Apply the correction
+				for (int i = 0; i < corr_imp.getStackSize(); i++) {
+					curip = corr_imp.getImageStack().getProcessor(i + 1)
+					curip.multiply(ratio)
+				}
+			}
+		}
+		// Add the corrected normalized images to the list
 		corr_imps.add(corr_imp)
 	}
 	// Concatenate:
@@ -111,6 +163,7 @@ def getStringFromImp(ImagePlus imp, ImageStack stack, LocalDateTime dateTime_ref
 #@ Integer(label="Number of frames per second in avi", value=2) frame_per_second
 #@ String(label="Channel to be bleach corrected", choices={"None", "Green", "Red", "Grays"}) bleach_cor_channel
 #@ String(label="Indices after which the media was changed separated by comma (1-based)", value="") media_change_points
+#@ Boolean(label="Normalize each chunk to the first chunk", value="false") normalize_to_first_chunk
 #@ String(label="Channels to include in the movie separated by comma among Grays,Green,Red") channels_in_film_comma
 #@ Double(label="minimum display value for Grays (-1 for auto)", value=-1) min_grey
 #@ Double(label="maximum display value for Grays (-1 for auto)", value=-1) max_grey
@@ -157,7 +210,7 @@ for (channel_color in channels_in_film) {
 	    	found_channel = true
 	        ImagePlus imp_temp = new Duplicator().run(imp, i, i, 1, 1, 1, nT)
 	        if (bleach_cor_channel == channel_color) {
-	        	ImagePlus corrected_imp = bleachCorr(imp_temp, media_change_points)
+	        	ImagePlus corrected_imp = bleachCorr(imp_temp, media_change_points, normalize_to_first_chunk)
 	        	images.add(corrected_imp)
 	        } else {
 	        	images.add(imp_temp)
