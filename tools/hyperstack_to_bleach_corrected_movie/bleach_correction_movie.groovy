@@ -10,6 +10,7 @@ import ij.plugin.Concatenator
 import ij.plugin.Duplicator
 import ij.plugin.HyperStackConverter
 import ij.plugin.filter.AVI_Writer
+import ij.plugin.ScaleBar
 import ij.process.ImageProcessor
 import ij.process.ImageStatistics
 import ij.util.FontUtil
@@ -165,6 +166,8 @@ def getStringFromImp(ImagePlus imp, ImageStack stack, LocalDateTime dateTime_ref
 #@ String(label="Indices after which the media was changed separated by comma (1-based)", value="") media_change_points
 #@ Boolean(label="Normalize each chunk to the first chunk", value="false") normalize_to_first_chunk
 #@ String(label="Channels to include in the movie separated by comma among Grays,Green,Red") channels_in_film_comma
+#@ Boolean(label="Display scalebar", value="false") display_scalebar
+#@ Double(label="Scale (size of 1 pixel in um)", value=1.24) scale
 #@ Double(label="minimum display value for Grays (-1 for auto)", value=-1) min_grey
 #@ Double(label="maximum display value for Grays (-1 for auto)", value=-1) max_grey
 #@ Double(label="minimum display value for Green (-1 for auto)", value=-1) min_green
@@ -287,6 +290,34 @@ if (dateTime_ref != null) {
 	        ip.drawString(label)
 		}
 	}
+}
+// Add the scalebar
+if (display_scalebar) {
+	IJ.run(final_imp, "Set Scale...", "distance=" + scale + " known=1 unit=um global")
+	// This does not work in headless:
+	// IJ.run(final_imp, "Scale Bar...", "width=100 height=100 thickness=10 font=50 color=White background=None location=[Lower Right] horizontal bold serif label")
+	ScaleBar sb = new ScaleBar()
+	sb.imp = final_imp
+	def config = new ScaleBar.ScaleBarConfiguration()
+	sb.updateScalebar(true)
+	// Set the config
+	config.hBarWidth = 100 // default -1
+	config.vBarHeight = 100 // default -1
+	config.barThicknessInPixels = 10 // default 4
+	config.fontSize = 50 // default 14
+	config.serifFont = true // default false
+	config.useOverlay = false // default true
+	config.labelAll = true // default false
+	// This is already the default but in case:
+	config.color = "White"
+	config.bcolor = "None"
+	config.location = "Lower Right"
+	config.showHorizontal = true
+	config.showVertical = false
+	config.boldText = true
+	config.hideText = false
+	sb.config = config
+	sb.updateScalebar(!config.labelAll)
 }
 if (! GraphicsEnvironment.isHeadless()){
 	final_imp.show()

@@ -1,8 +1,8 @@
 <tool id="hyperstack_to_bleach_corrected_movie" name="Generate movie from hyperstack" version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@" profile="20.01" license="MIT">
     <description>with bleach correction</description>
     <macros>
-        <token name="@TOOL_VERSION@">20230327</token>
-        <token name="@VERSION_SUFFIX@">1</token>
+        <token name="@TOOL_VERSION@">20230328</token>
+        <token name="@VERSION_SUFFIX@">0</token>
         <xml name="bleach_param">
             <param name="media_change_points" type="text" value="" label="Indices of frames just before the media was changed separated by comma (1-based excluding last index)">
                 <sanitizer invalid_char="">
@@ -23,7 +23,7 @@
     </requirements>
     <command detect_errors="exit_code"><![CDATA[
         ImageJ --ij2 --headless --console --run '$__tool_directory__/'bleach_correction_movie.groovy 
-            'image_filename="${image_filename}",starting_time_hour="${starting_time_hour}",x="${x}",y="${y}",frame_per_second="${frame_per_second}",bleach_cor_channel="${bleach_cor.bleach_cor_channel}",media_change_points="${bleach_cor.media_change_points}",normalize_to_first_chunk="${bleach_cor.normalize_to_first_chunk}",channels_in_film_comma="${channels_in_film}",min_grey="${minmax.min_grey}",max_grey="${minmax.max_grey}",min_green="${minmax.min_green}",max_green="${minmax.max_green}",min_red="${minmax.min_red}",max_red="${minmax.max_red}"' > output.log
+            'image_filename="${image_filename}",starting_time_hour="${starting_time_hour}",x="${x}",y="${y}",frame_per_second="${frame_per_second}",bleach_cor_channel="${bleach_cor.bleach_cor_channel}",media_change_points="${bleach_cor.media_change_points}",normalize_to_first_chunk="${bleach_cor.normalize_to_first_chunk}",channels_in_film_comma="${channels_in_film}",display_scalebar="${scalebar.display_scalebar}",scale="${scalebar.scale}",min_grey="${minmax.min_grey}",max_grey="${minmax.max_grey}",min_green="${minmax.min_green}",max_green="${minmax.max_green}",min_red="${minmax.min_red}",max_red="${minmax.max_red}"' > output.log
         && ffmpeg -i *avi -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2,format=yuv420p" Movie.mp4
     ]]></command>
     <inputs>
@@ -58,6 +58,18 @@
             <option value="Green">Green</option>
             <option value="Red">Red</option>
         </param>
+        <conditional name="scalebar">
+            <param name="display_scalebar" type="select" label="Display a scalebar">
+                <option value="true">Yes</option>
+                <option value="false">No</option>
+            </param>
+            <when value="true">
+                <param name="scale" type="float" value="1.24" label="Scale (size of 1 pixel in um)" help="For incucyte use 2.82 for 4x, 1.24 for 10x, 0.62 for 20x" />
+            </when>
+            <when value="false">
+                <param name="scale" type="hidden" value="0"/>
+            </when>
+        </conditional>
         <section name="minmax" title="Set min max display values" expanded="false">
             <param name="min_grey" type="float" min="-1" max="65535" value="-1" label="minimum display value for Grays (-1 for auto)" />
             <param name="max_grey" type="float" min="-1" max="65535" value="-1" label="maximum display value for Grays (-1 for auto)" />
@@ -71,26 +83,36 @@
         <data name="logfile" format="txt" from_work_dir="output.log" label="${tool.name} on ${on_string}: logfile" />
         <data name="movie" format="mp4" from_work_dir="Movie.mp4" label="${tool.name} on ${on_string}: movie" />
     </outputs>
-    <!-- <tests>
-        <test>
-            <param name="image_filename" value="A2_1_merge.tif"/>
+    <tests>
+        <!-- <test>
+            <param name="image_filename" value="G4_1_merge.tiff"/>
             <param name="channels_in_film" value="Grays,Green"/>
-            <param name="starting_time_hour" value="96"/>
+            <param name="starting_time_hour" value="48"/>
             <conditional name="bleach_cor">
                 <param name="bleach_cor_channel" value="Green"/>
+                <param name="normalize_to_first_chunk" value="true"/>
+                <param name="media_change_points" value="1,12,24"/>
             </conditional>
+            <conditional name="scalebar">
+                <param name="display_scalebar" value="true"/>
+                <param name="scale" value="1.24"/>
+            </conditional>
+            <section name="minmax">
+                <param name="min_green" value="1250"/>
+                <param name="max_green" value="1360"/>
+            </section>
             <output name="movie">
                 <assert_contents>
-                    <has_size value="5194567" delta="520000"/>
+                    <has_size value="6004060" delta="600000"/>
                 </assert_contents>
             </output>
             <output name="logfile">
                 <assert_contents>
-                    <has_text text="-1548.177854902451,-0.01846531789679277,4002.8031422214503"/>
+                    <has_text text="3095.5504420746947,0.022024824523925787,-421.6082446649406"/>
                 </assert_contents>
             </output>
-        </test>
-    </tests> -->
+        </test> -->
+    </tests>
     <help><![CDATA[
 
 .. class:: infomark
