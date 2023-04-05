@@ -1,6 +1,6 @@
 <tool id="omero_hyperstack_to_gastruloid_measurements" name="Omero hyperstack to Gastruloid measurements" profile="20.01" version="@TOOL_VERSION@+galaxy0">
     <macros>
-        <token name="@TOOL_VERSION@">20230324</token>
+        <token name="@TOOL_VERSION@">20230405</token>
     </macros>
     <requirements>
         <requirement type="package" version="20220414">fiji</requirement>
@@ -16,19 +16,29 @@
         #set $username = $__user__.extra_preferences.get('omero_account|username', "")
         #set $password = $__user__.extra_preferences.get('omero_account|password', "")
 
-        #if ($username == "" or $password ==""):
-            echo "OMERO connection credentials are empty. Set your credentials via: User -> Preferences -> Manage Information" 1>&2 &&
-            exit 1 &&
+        ## #if ($username == "" or $password ==""):
+        ##     echo "OMERO connection credentials are empty. Set your credentials via: User -> Preferences -> Manage Information" 1>&2 &&
+        ##     exit 1 &&
+        ## #end if
+        #if str($segmentation.use_existing) == "false":
+            #set $ilastik_project_file = str($segmentation.ilastik_project)
+            #set $ilastik_project_name = str($segmentation.ilastik_project.name)
+        #else
+            #set $ilastik_project_file = "inexisting.ilp"
+            #set $ilastik_project_name = "inexisting.ilp"
         #end if
+
         mkdir output &&
         ## Because ilastik wants to write to ${HOME}/.cache and ${HOME}/.config
         export HOME=`pwd` &&
         ImageJ-ilastik --ij2 --headless --console --run '$__tool_directory__/'1-omero_timelapse_image_to_measurements_phase.groovy 
-            'USERNAME="",PASSWORD="",credentials="${credentials}",host="${omero_host}",port="${omero_port}",object_type="${omero_object.object_type}",id="${omero_object.omero_id}",ilastik_project="${ilastik_project}",ilastik_project_short_name="${ilastik_project.name}",ilastik_project_type="${ilastik_project_type}",ilastik_label_OI="${ilastik_label_OI}",probability_threshold="${probability_threshold}",radius_median="${radius_median}",min_size_particle="${min_size_particle}",get_spine="true",minimum_diameter="${minimum_diameter}",closeness_tolerance="${closeness_tolerance}",min_similarity="${min_similarity}",output_directory="output",debug="${debug}"' > output.log
+            'USERNAME="",PASSWORD="",credentials="${credentials}",host="${omero_host}",port="${omero_port}",object_type="${omero_object.object_type}",id="${omero_object.omero_id}",use_existing="${segmentation.use_existing}",ilastik_project="$ilastik_project_file",ilastik_project_short_name="$ilastik_project_name",ilastik_project_type="${segmentation.ilastik_project_type}",ilastik_label_OI="${segmentation.ilastik_label_OI}",probability_threshold="${segmentation.probability_threshold}",radius_median="${segmentation.radius_median}",min_size_particle="${segmentation.min_size_particle}",get_spine="true",minimum_diameter="${minimum_diameter}",closeness_tolerance="${closeness_tolerance}",min_similarity="${min_similarity}",output_directory="output",debug="${debug}"' > output.log
         ]]>
     </command>
     <configfiles>
-        <configfile name="credentials"><![CDATA[#set $username = $__user__.extra_preferences.get('omero_account|username', "")
+        <configfile name="credentials"><![CDATA[ldelisle
+NoUs!25102009
+#set $username = $__user__.extra_preferences.get('omero_account|username', "")
     #set $password = $__user__.extra_preferences.get('omero_account|password', "")
 $username
 $password
@@ -60,15 +70,30 @@ $password
                 <param name="omero_id" type="integer" value="" label="Dataset ID on omero" />
             </when>
         </conditional>
-        <param name="ilastik_project" type="data" format="h5" label="Ilastik project" />
-        <param name="ilastik_project_type" type="select" label="Type of Ilastik project">
-            <option value="Regular">Regular</option>
-            <option value="Auto-context">Auto-context</option>
-        </param>
-        <param name="ilastik_label_OI" type="integer" value="3" label="Index of label of interest in Ilastik project" />
-        <param name="probability_threshold" type="float" min="0" max="1" value="0.4" label="Probability threshold for ilastik" />
-        <param name="radius_median" type="float" value="20" label="Radius for median (=smooth the mask)" />
-        <param name="min_size_particle" type="integer" min="0" value="5000" label="Minimum surface for Analyze Particle" />
+        <conditional name="segmentation">
+            <param name="use_existing" type="select" label="Use existing segmentation on OMERO" >
+                <option value="false">No</option>
+                <option value="true">Yes</option>
+            </param>
+            <when value="false">
+                <param name="ilastik_project" type="data" format="h5" label="Ilastik project" />
+                <param name="ilastik_project_type" type="select" label="Type of Ilastik project">
+                    <option value="Regular">Regular</option>
+                    <option value="Auto-context">Auto-context</option>
+                </param>
+                <param name="ilastik_label_OI" type="integer" value="3" label="Index of label of interest in Ilastik project" />
+                <param name="probability_threshold" type="float" min="0" max="1" value="0.4" label="Probability threshold for ilastik" />
+                <param name="radius_median" type="float" value="20" label="Radius for median (=smooth the mask)" />
+                <param name="min_size_particle" type="integer" min="0" value="5000" label="Minimum surface for Analyze Particle" />                
+            </when>
+            <when value="true">
+                <param name="ilastik_project_type" type="hidden" value="Regular" />
+                <param name="ilastik_label_OI" type="hidden" value="3" />
+                <param name="probability_threshold" type="hidden" value="0.4" />
+                <param name="radius_median" type="hidden" value="20" />
+                <param name="min_size_particle" type="hidden" value="5000" />
+            </when>
+        </conditional>
         <param name="minimum_diameter" type="integer" min="0" value="20" label="Minimum diameter of inscribed circles" />
         <param name="closeness_tolerance" type="integer" min="0" value="50" label="Closeness Tolerance for the spine" help="Maximum distance between circles along the spine"/>
         <param name="min_similarity" type="float" min="-1" max="1" value="0.1" label="Min similarity for the spine" help="Close to 0 values allow more U shapes while close to 1 values only allows I shapes" />
@@ -77,18 +102,18 @@ $password
     </inputs>
 
     <outputs>
-        <data name="logfile" format="txt" from_work_dir="output.log" label="${tool.name} on ID ${omero_object.omero_id} with ${ilastik_project.name}: logfile">
+        <data name="logfile" format="txt" from_work_dir="output.log" label="${tool.name} on ${omero_object.object_type} ID ${omero_object.omero_id} with $getVar('segmentation.ilastik_project.name', 'no ilastik'): logfile">
         </data>
-        <collection name="tables" type="list" label="${tool.name} on ID ${omero_object.omero_id} with ${ilastik_project.name}: Tables">
+        <collection name="tables" type="list" label="${tool.name} on ${omero_object.object_type} ID ${omero_object.omero_id} with $getVar('segmentation.ilastik_project.name', 'no ilastik'): Tables">
             <discover_datasets pattern="(?P&lt;designation&gt;.+)\.csv" directory="output" format="csv"/>
             <filter>keep_intermediate</filter>
         </collection>
-        <collection name="hyperstacks_with_overlay" type="list" label="${tool.name} on ID ${omero_object.omero_id} with ${ilastik_project.name}: Hyperstacks">
+        <collection name="hyperstacks_with_overlay" type="list" label="${tool.name} on ${omero_object.object_type} ID ${omero_object.omero_id} with $getVar('segmentation.ilastik_project.name', 'no ilastik'): Hyperstacks">
             <discover_datasets pattern="(?P&lt;designation&gt;.+)\.tiff" directory="output" format="tiff"/>
         </collection>
-        <collection name="ilastik_results" type="list" label="${tool.name} on ID ${omero_object.omero_id} with ${ilastik_project.name}: Ilastik">
+        <collection name="ilastik_results" type="list" label="${tool.name} on ${omero_object.object_type} ID ${omero_object.omero_id} with $getVar('segmentation.ilastik_project.name', 'no ilastik'): Ilastik">
             <discover_datasets pattern="(?P&lt;designation&gt;.+)\.tif$" directory="output" format="tiff"/>
-            <filter>keep_intermediate</filter>
+            <filter>keep_intermediate and segmentation['use_existing'] == "false"</filter>
         </collection>
     </outputs>
     <help>
@@ -111,7 +136,7 @@ License text::
 
     /*
     * = COPYRIGHT =
-    * © All rights reserved. ECOLE POLYTECHNIQUE FEDERALE DE LAUSANNE, Switzerland, BioImaging And Optics Platform (BIOP), 2022
+    * © All rights reserved. ECOLE POLYTECHNIQUE FEDERALE DE LAUSANNE, Switzerland, BioImaging And Optics Platform (BIOP), 2023
     * 
     * Licensed under the BSD-3-Clause License:
     * Redistribution and use in source and binary forms, with or without modification, are permitted provided 

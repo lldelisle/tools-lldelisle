@@ -4,7 +4,7 @@
 // merge the analysis script with templates available at
 // https://github.com/BIOP/OMERO-scripts/tree/main/Fiji
 
-// Last modification: 2023-03-24
+// Last modification: 2023-04-05
 
 /*
  * = COPYRIGHT =
@@ -41,7 +41,7 @@
 
 // In both modes,
 // The result table and the result ROI are sent to omero
-// The measures are: Area,Perim.,Circ.,Feret,FeretX,FeretY,FeretAngle,MinFeret,AR,Round,Solidity,Unit,Date,Version,IlastikProject,ProbabilityThreshold,MinSizeParticle,MinDiameter,ClosenessTolerance,MinSimilarity,RadiusMedian,BaseImage,ROI,Time,ROI_type,LargestRadius,SpineLength,ElongationIndex
+// The measures are: Area,Perim.,Circ.,Feret,FeretX,FeretY,FeretAngle,MinFeret,AR,Round,Solidity,Unit,Date,Version,IlastikProject,ProbabilityThreshold,MinSizeParticle,MinDiameter,ClosenessTolerance,MinSimilarity,RadiusMedian,BaseImage,ROI,Time,ROI_type,LargestRadius,SpineLength,ElongationIndex[,Date_rerun_spine,Version_rerun_spine]
 
 // LargestRadius and SpineLength are set to 0 if no circle was found.
 // ElongationIndex is set to 0 if a gastruloid was found and to -1 if no gastruloid was found.
@@ -65,6 +65,7 @@ import ij.gui.PolygonRoi
 import ij.gui.Roi
 import ij.IJ
 import ij.io.FileSaver
+import ij.measure.ResultsTable
 import ij.plugin.Concatenator
 import ij.plugin.Duplicator
 import ij.plugin.frame.RoiManager
@@ -77,6 +78,7 @@ import ij.process.ImageProcessor
 import java.awt.Color
 import java.awt.GraphicsEnvironment
 import java.io.File
+import java.util.stream.Collectors
 
 import loci.plugins.in.ImporterOptions
 
@@ -96,7 +98,8 @@ def processDataset(Client user_client, DatasetWrapper dataset_wpr,
                    Integer minimum_diameter, Integer closeness_tolerance, Double min_similarity,
                    String ilastik_project_short_name,
                    File output_directory,
-                   Boolean headless_mode, Boolean debug, String tool_version) {
+                   Boolean headless_mode, Boolean debug, String tool_version,
+                   Boolean use_existing, String final_object) {
     dataset_wpr.getImages(user_client).each{ ImageWrapper img_wpr ->
         processImage(user_client, img_wpr,
                      ilastik_project, ilastik_project_type,
@@ -105,7 +108,8 @@ def processDataset(Client user_client, DatasetWrapper dataset_wpr,
                      minimum_diameter, closeness_tolerance, min_similarity,
                      ilastik_project_short_name,
                      output_directory,
-                     headless_mode, debug, tool_version)
+                     headless_mode, debug, tool_version,
+                     use_existing, final_object)
     }
 }
 
@@ -117,7 +121,7 @@ def processSinglePlate(Client user_client, PlateWrapper plate_wpr,
                        Integer minimum_diameter, Integer closeness_tolerance, Double min_similarity,
                        String ilastik_project_short_name,
                        File output_directory,
-                       Boolean headless_mode, Boolean debug, String tool_version) {
+                       Boolean headless_mode, Boolean debug, String tool_version, Boolean use_existing, String final_object) {
     plate_wpr.getWells(user_client).each{ well_wpr ->
         processSingleWell(user_client, well_wpr,
                      ilastik_project, ilastik_project_type,
@@ -126,7 +130,8 @@ def processSinglePlate(Client user_client, PlateWrapper plate_wpr,
                      minimum_diameter, closeness_tolerance, min_similarity,
                      ilastik_project_short_name,
                      output_directory,
-                     headless_mode, debug, tool_version)
+                     headless_mode, debug, tool_version,
+                     use_existing, final_object)
     }
 }
 
@@ -138,7 +143,7 @@ def processSingleWell(Client user_client, WellWrapper well_wpr,
                       Integer minimum_diameter, Integer closeness_tolerance, Double min_similarity,
                       String ilastik_project_short_name,
                       File output_directory,
-                      Boolean headless_mode, Boolean debug, String tool_version) {
+                      Boolean headless_mode, Boolean debug, String tool_version, Boolean use_existing, String final_object) {
     well_wpr.getWellSamples().each{
         processImage(user_client, it.getImage(),
                      ilastik_project, ilastik_project_type,
@@ -147,7 +152,8 @@ def processSingleWell(Client user_client, WellWrapper well_wpr,
                      minimum_diameter, closeness_tolerance, min_similarity,
                      ilastik_project_short_name,
                      output_directory,
-                     headless_mode, debug, tool_version)
+                     headless_mode, debug, tool_version,
+                     use_existing, final_object)
     }
 }
 
@@ -159,7 +165,8 @@ def processImage(Client user_client, ImageWrapper image_wpr,
                  Integer minimum_diameter, Integer closeness_tolerance, Double min_similarity,
                  String ilastik_project_short_name,
                  File output_directory,
-                 Boolean headless_mode, Boolean debug, String tool_version) {
+                 Boolean headless_mode, Boolean debug, String tool_version,
+                 Boolean use_existing, String final_object) {
 
     IJ.run("Close All", "")
     IJ.run("Clear Results")
@@ -179,6 +186,14 @@ def processImage(Client user_client, ImageWrapper image_wpr,
     // if the image is part of a dataset
     if(!dataset_wpr_list.isEmpty()){
         dataset_wpr_list.each{println("dataset_name : "+it.getName()+" / id : "+it.getId())};
+        if (final_object == "image") {
+            // Remove tables from datasets:
+            dataset_wpr_list.each{  DatasetWrapper dataset_wpr ->
+                dataset_wpr.getTables(user_client).each{
+                    user_client.delete(it)
+                }
+            }
+        }
         image_wpr.getProjects(user_client).each{println("Project_name : "+it.getName()+" / id : "+it.getId())};
     }
 
@@ -186,9 +201,21 @@ def processImage(Client user_client, ImageWrapper image_wpr,
     else {
         WellWrapper well_wpr = image_wpr.getWells(user_client).get(0)
         println ("Well_name : "+well_wpr.getName() +" / id : "+ well_wpr.getId())
+        if (final_object == "image") {
+            // Remove tables from well:
+            well_wpr.getTables(user_client).each{
+                user_client.delete(it)
+            }
+        }
 
         def plate_wpr = image_wpr.getPlates(user_client).get(0)
         println ("plate_name : "+plate_wpr.getName() + " / id : "+ plate_wpr.getId())
+        if (final_object == "image" || final_object == "well") {
+            // Remove tables from plate:
+            plate_wpr.getTables(user_client).each{
+                user_client.delete(it)
+            }
+        }
 
         def screen_wpr = image_wpr.getScreens(user_client).get(0)
         println ("screen_name : "+screen_wpr.getName() + " / id : "+ screen_wpr.getId())
@@ -205,8 +232,13 @@ def processImage(Client user_client, ImageWrapper image_wpr,
     int nC = dim_array[2]
     int nT = dim_array[4]
 
-    int ilastik_input_ch = 1
+    // Get scale from omero
+    PixelsWrapper pixels = image_wpr.getPixels()
+    LengthI pixel_size = pixels.getPixelSizeX()
+    Double scale = pixel_size.getValue()
+    String scale_unit = pixel_size.getUnit().toString()
     // Find the Greys channel:
+    int ilastik_input_ch = 1
     ImageProcessor ip
     if (nC > 1) {
         for (int i = 1; i <= nC; i ++) {
@@ -223,164 +255,262 @@ def processImage(Client user_client, ImageWrapper image_wpr,
             }
         }
     }
-    File output_path = new File (output_directory, image_basename+"_ilastik_" + ilastik_project_short_name + "_output.tif" )
-    ImagePlus predictions_imp
-    FileSaver fs
-    if(output_path.exists()) {
-        println "USING EXISTING ILASTIK OUTPUT"
-        predictions_imp = IJ.openImage( output_path.toString() )
-    } else {
+    // Define what will be defined in both cases:
+    double pixelWidth
+    ImagePlus newMask_imp
+    List<Roi> updatedRois
+    if (!use_existing) {
+        File output_path = new File (output_directory, image_basename+"_ilastik_" + ilastik_project_short_name + "_output.tif" )
+        ImagePlus predictions_imp
+        FileSaver fs
+        if(output_path.exists()) {
+            println "USING EXISTING ILASTIK OUTPUT"
+            predictions_imp = IJ.openImage( output_path.toString() )
+        } else {
+            /**
+            *  ilastik
+            */
+            println "Starting ilastik"
+
+            // get ilastik predictions for each time point of the Time-lapse but all at the same time
+            ImagePlus ilastik_input_original = new Duplicator().run(imp, ilastik_input_ch, ilastik_input_ch, 1, 1, 1, nT);
+
+            ImagePlus gb_imp = ilastik_input_original.duplicate()
+            IJ.run(gb_imp, "Gaussian Blur...", "sigma=100 stack")
+            ImagePlus ilastik_input = ImageCalculator.run(ilastik_input_original, gb_imp, "Divide create 32-bit stack")
+            if (!headless_mode) {ilastik_input.show()}
+            // can't work without displaying image
+            // IJ.run("Run Pixel Classification Prediction", "projectfilename="+ilastik_project+" inputimage="+ilastik_input.getTitle()+" pixelclassificationtype=Probabilities");
+            //
+            // to use in headless_mode more we need to use a commandservice
+            def predictions_imgPlus
+            if (ilastik_project_type == "Regular") {
+                predictions_imgPlus = cmds.run( IlastikPixelClassificationCommand.class, false,
+                                            'inputImage', ilastik_input,
+                                            'projectFileName', ilastik_project,
+                                            'pixelClassificationType', "Probabilities").get().getOutput("predictions")
+            } else {
+                predictions_imgPlus = cmds.run( IlastikAutoContextCommand.class, false,
+                                            'inputImage', ilastik_input,
+                                            'projectFileName', ilastik_project,
+                                            'AutocontextPredictionType', "Probabilities").get().getOutput("predictions")
+            }
+            // to convert the result to ImagePlus : https://gist.github.com/GenevieveBuckley/460d0abc7c1b13eee983187b955330ba
+            predictions_imp = ImageJFunctions.wrap(predictions_imgPlus, "predictions")
+
+            predictions_imp.setTitle("ilastik_output")
+
+            // save file
+            fs = new FileSaver(predictions_imp)
+            fs.saveAsTiff(output_path.toString() )
+        }
+        if (!headless_mode) {  predictions_imp.show()   }
+
         /**
-        *  ilastik
+        * From the "ilastik predictions of the Time-lapse" do segmentation and cleaning
         */
-        println "Starting ilastik"
+        // Get only the channel for the gastruloid/background prediction
+        ImagePlus mask_imp = new Duplicator().run(predictions_imp, ilastik_label_OI, ilastik_label_OI, 1, 1, 1, nT);
+        // This title will appear in the result table
+        mask_imp.setTitle(image_basename)
+        // Apply threshold:
+        IJ.setThreshold(mask_imp, probability_threshold, 100.0000);
+        Prefs.blackBackground = true;
+        IJ.run(mask_imp, "Convert to Mask", "method=Default background=Dark black");
+        if (!headless_mode) {  mask_imp.show() }
 
-        // get ilastik predictions for each time point of the Time-lapse but all at the same time
-        ImagePlus ilastik_input_original = new Duplicator().run(imp, ilastik_input_ch, ilastik_input_ch, 1, 1, 1, nT);
+        // clean the mask a bit
+        // Before we were doing:
+        // IJ.run(mask_ilastik_imp, "Options...", "iterations=10 count=3 black do=Open")
+        // Now:
+        // (Romain proposed 5 as radius_median)
+        println "Smoothing mask"
 
-        ImagePlus gb_imp = ilastik_input_original.duplicate()
-        IJ.run(gb_imp, "Gaussian Blur...", "sigma=100 stack")
-        ImagePlus ilastik_input = ImageCalculator.run(ilastik_input_original, gb_imp, "Divide create 32-bit stack")
-        if (!headless_mode) {ilastik_input.show()}
-        // can't work without displaying image
-        // IJ.run("Run Pixel Classification Prediction", "projectfilename="+ilastik_project+" inputimage="+ilastik_input.getTitle()+" pixelclassificationtype=Probabilities");
-        //
-        // to use in headless_mode more we need to use a commandservice
-        def predictions_imgPlus
-        if (ilastik_project_type == "Regular") {
-            predictions_imgPlus = cmds.run( IlastikPixelClassificationCommand.class, false,
-                                        'inputImage', ilastik_input,
-                                        'projectFileName', ilastik_project,
-                                        'pixelClassificationType', "Probabilities").get().getOutput("predictions")
-        } else {
-            predictions_imgPlus = cmds.run( IlastikAutoContextCommand.class, false,
-                                        'inputImage', ilastik_input,
-                                        'projectFileName', ilastik_project,
-                                        'AutocontextPredictionType', "Probabilities").get().getOutput("predictions")
+        // Here I need to check if we first fill holes or first do the median
+        IJ.run(mask_imp, "Median...", "radius=" + radius_median + " stack");
+
+        IJ.run(mask_imp, "Fill Holes", "stack");
+
+        // find gastruloids and measure them
+
+        IJ.run("Set Measurements...", "area feret's perimeter shape display redirect=None decimal=3")
+        IJ.run("Set Scale...", "distance=1 known=" + scale + " unit=micron")
+        pixelWidth = mask_imp.getCalibration().pixelWidth
+        println "pixelWidth is " + pixelWidth
+        // Exclude the edge
+        IJ.run(mask_imp, "Analyze Particles...", "size=" + min_size_particle + "-Infinity stack exclude show=Overlay");
+
+        println "Found " + rt.size() + " ROIs"
+
+        // make a "clean" mask
+        newMask_imp = IJ.createImage("CleanMask", "8-bit black", imp.getWidth(), imp.getHeight(), nT);
+        if (nT > 1) {
+            HyperStackConverter.toHyperStack(newMask_imp, 1, 1, nT, "xyctz", "Color");
         }
-        // to convert the result to ImagePlus : https://gist.github.com/GenevieveBuckley/460d0abc7c1b13eee983187b955330ba
-        predictions_imp = ImageJFunctions.wrap(predictions_imgPlus, "predictions")
+        if (!headless_mode) {newMask_imp.show()}
 
-        predictions_imp.setTitle("ilastik_output")
-
-        // save file
-        fs = new FileSaver(predictions_imp)
-        fs.saveAsTiff(output_path.toString() )
-    }
-    if (!headless_mode) {  predictions_imp.show()   }
-
-    /**
-     * From the "ilastik predictions of the Time-lapse" do segmentation and cleaning
-     */
-    // Get only the channel for the gastruloid/background prediction
-    ImagePlus mask_imp = new Duplicator().run(predictions_imp, ilastik_label_OI, ilastik_label_OI, 1, 1, 1, nT);
-    // This title will appear in the result table
-    mask_imp.setTitle(image_basename)
-    // Apply threshold:
-    IJ.setThreshold(mask_imp, probability_threshold, 100.0000);
-    Prefs.blackBackground = true;
-    IJ.run(mask_imp, "Convert to Mask", "method=Default background=Dark black");
-    if (!headless_mode) {  mask_imp.show() }
-
-    // clean the mask a bit
-    // Before we were doing:
-    // IJ.run(mask_ilastik_imp, "Options...", "iterations=10 count=3 black do=Open")
-    // Now:
-    // (Romain proposed 5 as radius_median)
-    println "Smoothing mask"
-
-    // Here I need to check if we first fill holes or first do the median
-    IJ.run(mask_imp, "Median...", "radius=" + radius_median + " stack");
-
-    IJ.run(mask_imp, "Fill Holes", "stack");
-
-    // Get scale from omero
-    PixelsWrapper pixels = image_wpr.getPixels()
-    LengthI pixel_size = pixels.getPixelSizeX()
-    Double scale = pixel_size.getValue()
-    String scale_unit = pixel_size.getUnit().toString()
-
-    // find gastruloids and measure them
-
-    IJ.run("Set Measurements...", "area feret's perimeter shape display redirect=None decimal=3")
-    IJ.run("Set Scale...", "distance=1 known=" + scale + " unit=micron")
-    // Exclude the edge
-    IJ.run(mask_imp, "Analyze Particles...", "size=" + min_size_particle + "-Infinity stack exclude show=Overlay");
-
-    println "Found " + rt.size() + " ROIs"
-
-    // make a "clean" mask
-    newMask_imp = IJ.createImage("CleanMask", "8-bit black", imp.getWidth(), imp.getHeight(), nT);
-    if (nT > 1) {
-        HyperStackConverter.toHyperStack(newMask_imp, 1, 1, nT, "xyctz", "Color");
-    }
-    if (!headless_mode) {newMask_imp.show()}
-
-    Overlay ov = mask_imp.getOverlay()
-    // Let's keep only the largest area for each time:
-    Overlay clean_overlay = new Overlay()
-    Roi largest_roi_inT
-    for (int t=1;t<=nT;t++) {
-        // Don't ask me why we need to refer to Z pos and not T/Frame
-        ArrayList<Roi> all_rois_inT = ov.findAll{ roi -> roi.getZPosition() == t}
-        println "There are " + all_rois_inT.size() + " in time " + t
-        if (all_rois_inT.size() == 0) {
-            // We arbitrary design a ROI of size 1x1
-            largest_roi_inT = new Roi(0,0,1,1)
-            largest_roi_inT.setName("GastruloidNotFound_t" + t)
-        } else {
-            largest_roi_inT = Collections.max(all_rois_inT, Comparator.comparing((roi) -> roi.getStatistics().area ))
-            largest_roi_inT.setName("Gastruloid_t" + t)
+        Overlay ov = mask_imp.getOverlay()
+        // Let's keep only the largest area for each time:
+        Overlay clean_overlay = new Overlay()
+        Roi largest_roi_inT
+        for (int t=1;t<=nT;t++) {
+            // Don't ask me why we need to refer to Z pos and not T/Frame
+            ArrayList<Roi> all_rois_inT = ov.findAll{ roi -> roi.getZPosition() == t}
+            println "There are " + all_rois_inT.size() + " in time " + t
+            if (all_rois_inT.size() == 0) {
+                // We arbitrary design a ROI of size 1x1
+                largest_roi_inT = new Roi(0,0,1,1)
+                largest_roi_inT.setName("GastruloidNotFound_t" + t)
+            } else {
+                largest_roi_inT = Collections.max(all_rois_inT, Comparator.comparing((roi) -> roi.getStatistics().area ))
+                largest_roi_inT.setName("Gastruloid_t" + t)
+            }
+            // Fill the frame t with the largest_roi_inT
+            newMask_imp.setT(t)
+            Overlay t_ov = new Overlay(largest_roi_inT)
+            t_ov.fill(newMask_imp,  Color.white, Color.black)
+            // Update the position before adding to the clean_overlay
+            largest_roi_inT.setPosition( ilastik_input_ch, 1, t)
+            clean_overlay.add(largest_roi_inT)
         }
-        // Fill the frame t with the largest_roi_inT
-        newMask_imp.setT(t)
-        Overlay t_ov = new Overlay(largest_roi_inT)
-        t_ov.fill(newMask_imp,  Color.white, Color.black)
-        // Update the position before adding to the clean_overlay
-        largest_roi_inT.setPosition( ilastik_input_ch, 1, t)
-        clean_overlay.add(largest_roi_inT)
+
+        // Measure this new overlay:
+        rt = clean_overlay.measure(imp)
+
+        assert rt.size() == nT: "Was expecting as many entry as time points"
+
+        // Get Date
+        Date date = new Date()
+        String now = date.format("yyyy-MM-dd_HH-mm")
+
+        // Add Date, version and params
+        for ( int row = 0;row<rt.size();row++) {
+            rt.setValue("Unit", row, scale_unit)
+            rt.setValue("Date", row, now)
+            rt.setValue("Version", row, tool_version)
+            rt.setValue("IlastikProject", row, ilastik_project_short_name)
+            rt.setValue("ProbabilityThreshold", row, probability_threshold)
+            rt.setValue("MinSizeParticle", row, min_size_particle)
+            rt.setValue("MinDiameter", row, minimum_diameter)
+            rt.setValue("ClosenessTolerance", row, closeness_tolerance)
+            rt.setValue("MinSimilarity", row, min_similarity)
+            rt.setValue("RadiusMedian", row, radius_median)
+            String label = rt.getLabel(row)
+            rt.setValue("BaseImage", row, label.split(":")[0])
+            rt.setValue("ROI", row, label.split(":")[1])
+            // In simple-omero-client
+            // Strings that can be converted to double are stored in double
+            // in omero so to create the super_table we need to store all
+            // them as Double:
+            rt.setValue("Time", row, label.split(":")[1].split("_t")[-1] as Double)
+            rt.setValue("ROI_type", row, label.split(":")[1].split("_t")[0])
+        }
+        println "Remove existing ROIs and tables on OMERO"
+        // Remove existing ROIs
+        // image_wpr.getROIs(user_client).each{ user_client.delete(it) }
+        // In order to reduce the number of 'servantsPerSession'
+        // Which reached 10k and then caused failure
+        // I use
+        // user_client.delete(image_wpr.getROIs(user_client))
+        // Because of https://github.com/GReD-Clermont/simple-omero-client/issues/59
+        // I use
+        ArrayList<ROIWrapper> rois_on_omero = image_wpr.getROIs(user_client)
+        if (rois_on_omero.size() > 0) {
+            user_client.delete(rois_on_omero.stream().map(ROIWrapper::asIObject).collect(Collectors.toList()))
+        }
+        image_wpr.getTables(user_client).each{
+            user_client.delete(it)
+        }
+        println "Store " + clean_overlay.size() + " ROIs on OMERO"
+        // Save ROIs to omero
+        image_wpr.saveROIs(user_client, ROIWrapper.fromImageJ(clean_overlay as List))
+
+        // Get them back with IDs:
+        updatedRois = ROIWrapper.toImageJ(image_wpr.getROIs(user_client), "ROI")
+    } else {
+        assert get_spine : "You cannot reuse segmentation without computing spine."
+        // get the list of image tables
+        // store the one with table_name
+        TableWrapper my_table
+        image_wpr.getTables(user_client).each{ TableWrapper t_wpr ->
+            if (t_wpr.getName() == table_name){
+                my_table = t_wpr
+            }
+        }
+        assert my_table != null: "There is no table named " + table_name + " you need to rerun segmentation."
+        // Get the ROI ids associated with the measures of the table
+        Long[] gastruloid_roi_ids = (my_table.getData()[1]).collect{
+            it.getId()
+        }
+        // Sort the array:
+        Arrays.sort(gastruloid_roi_ids)
+        // reinitialize the rt
+        rt = new ResultsTable()
+        // The first column (index 0) of the result table is the image ID
+        // The second column (index 1) is the ROI ID
+        // Add all others values
+        for (icol = 2; icol < my_table.getColumnCount(); icol ++) {
+            colname = my_table.getColumnName(icol)
+            for (row = 0; row < my_table.getRowCount(); row ++) {
+                rt.setValue(colname, row, my_table.getData(row, icol))
+            }
+        }
+        // Get Date
+        Date date = new Date()
+        String now = date.format("yyyy-MM-dd_HH-mm")
+
+        // Add Date, version and params
+        for ( int row = 0;row<rt.size();row++) {
+            rt.setValue("Date_rerun_spine", row, now)
+            rt.setValue("Version_rerun_spine", row, tool_version)
+            rt.setValue("MinDiameter", row, minimum_diameter)
+            rt.setValue("ClosenessTolerance", row, closeness_tolerance)
+            rt.setValue("MinSimilarity", row, min_similarity)
+            rt.setValue("ROI", row, my_table.getData(row, 1).getId())
+        }
+        
+        // Remove any roi which is not gastruloid:
+        println "Remove ROIs other than gastruloids segmentation results and tables"
+        // In order to reduce the number of 'servantsPerSession'
+        // Which reached 10k and then caused failure
+        // I store them in a list
+        ArrayList<ROIWrapper> ROIW_list_to_delete = []
+        image_wpr.getROIs(user_client).each{
+            if (Arrays.binarySearch(gastruloid_roi_ids, it.getId()) < 0) {
+                // user_client.delete(it)
+                ROIW_list_to_delete.add(it)
+            }
+        }
+        // Then I should use
+        // user_client.delete(ROIW_list_to_delete)
+        // Because of https://github.com/GReD-Clermont/simple-omero-client/issues/59
+        // I use
+        if (ROIW_list_to_delete.size() > 0) {
+            user_client.delete(ROIW_list_to_delete.stream().map(ROIWrapper::asIObject).collect(Collectors.toList()))
+        }
+        image_wpr.getTables(user_client).each{
+            user_client.delete(it)
+        }
+
+        // Retrieve the ROIs from omero:
+        updatedRois = ROIWrapper.toImageJ(image_wpr.getROIs(user_client), "ROI")
+        // Create a clean mask
+        newMask_imp = IJ.createImage("CleanMask", "8-bit black", imp.getWidth(), imp.getHeight(), nT);
+        if (nT > 1) {
+            HyperStackConverter.toHyperStack(newMask_imp, 1, 1, nT, "xyctz", "Color");
+        }
+        if (!headless_mode) {newMask_imp.show()}
+        for (largest_roi_inT in updatedRois) {
+            t = largest_roi_inT.getTPosition()
+            Overlay t_ov = new Overlay(largest_roi_inT)
+            // Fill the frame t with the largest_roi_inT
+            newMask_imp.setT(t)
+            t_ov.fill(newMask_imp,  Color.white, Color.black)
+        }
+        IJ.run("Set Scale...", "distance=1 known=" + scale + " unit=micron")
+        pixelWidth = newMask_imp.getCalibration().pixelWidth
+        println "pixelWidth is " + pixelWidth
     }
-
-    // Measure this new overlay:
-    rt = clean_overlay.measure(imp)
-
-    assert rt.size() == nT: "Was expecting as many entry as time points"
-
-    // Get Date
-    Date date = new Date()
-    String now = date.format("yyyy-MM-dd_HH-mm")
-
-    // Add Date, version and params
-    for ( int row = 0;row<rt.size();row++) {
-        rt.setValue("Unit", row, scale_unit)
-        rt.setValue("Date", row, now)
-        rt.setValue("Version", row, tool_version)
-        rt.setValue("IlastikProject", row, ilastik_project_short_name)
-        rt.setValue("ProbabilityThreshold", row, probability_threshold)
-        rt.setValue("MinSizeParticle", row, min_size_particle)
-        rt.setValue("MinDiameter", row, minimum_diameter)
-        rt.setValue("ClosenessTolerance", row, closeness_tolerance)
-        rt.setValue("MinSimilarity", row, min_similarity)
-        rt.setValue("RadiusMedian", row, radius_median)
-        String label = rt.getLabel(row)
-        rt.setValue("BaseImage", row, label.split(":")[0])
-        rt.setValue("ROI", row, label.split(":")[1])
-        // In simple-omero-client
-        // Strings that can be converted to double are stored in double
-        // in omero so to create the super_table we need to store all
-        // them as Double:
-        rt.setValue("Time", row, label.split(":")[1].split("_t")[-1] as Double)
-        rt.setValue("ROI_type", row, label.split(":")[1].split("_t")[0])
-    }
-    println "Remove existing ROIs on OMERO"
-    // Remove existing ROIs
-    image_wpr.getROIs(user_client).each{ user_client.delete(it) }
-    println "Store " + clean_overlay.size() + " ROIs on OMERO"
-    // Save ROIs to omero
-    image_wpr.saveROIs(user_client, ROIWrapper.fromImageJ(clean_overlay as List))
-
-    // Get them back with IDs:
-    List<Roi> updatedRois = ROIWrapper.toImageJ(image_wpr.getROIs(user_client), "ROI")
     if (get_spine) {
         /**
         * The MaxInscribedCircles magic is here
@@ -408,7 +538,6 @@ def processImage(Client user_client, ImageWrapper image_wpr,
         *  Measure distances and inverses spine roi if necessary
         *  Add value to table with Elongation Index
         */
-        double pixelWidth = mask_imp.getCalibration().pixelWidth
 
         for (int row = 0 ; row < rt.size();row++) {
 
@@ -495,13 +624,6 @@ def processImage(Client user_client, ImageWrapper image_wpr,
             }
         }
     }
-    // get the list of image tables
-    // remove the one with table_name
-    image_wpr.getTables(user_client).each{ TableWrapper t_wpr ->
-        if (t_wpr.getName() == table_name){
-            user_client.delete(t_wpr)
-        }
-    }
 
     // Create an omero table:
     println "Create an omero table"
@@ -509,8 +631,7 @@ def processImage(Client user_client, ImageWrapper image_wpr,
 
     // upload the table on OMERO
     table_wpr.setName(table_name)
-    image_wpr.addTable(user_client, table_wpr)
-
+    image_wpr.addAndReplaceTable(user_client, table_wpr)
     // add the same infos to the super_table
     if (super_table == null) {
         println "super_table is null"
@@ -542,7 +663,7 @@ def processImage(Client user_client, ImageWrapper image_wpr,
 // In simple-omero-client
 // Strings that can be converted to double are stored in double
 // In order to build the super_table, tool_version should stay String
-String tool_version = "Phase_v20230324"
+String tool_version = "Phase_v20230405"
 
 // User set variables
 
@@ -556,6 +677,7 @@ String tool_version = "Phase_v20230324"
 #@ Long(label="ID", value=119273) id
 
 #@ String(visibility=MESSAGE, value="Parameters for segmentation/ROI", required=false) msg2
+#@ Boolean(label="Use existing segmentation (values below in the section will be ignored)") use_existing
 #@ File(label="Ilastik project") ilastik_project
 #@ String(label="Ilastik project short name") ilastik_project_short_name
 #@ String(label="Ilastik project type", choices={"Regular", "Auto-context"}, value="Regular") ilastik_project_type
@@ -595,7 +717,9 @@ if (!headless_mode){
     rm = rm.getRoiManager()
     rm.reset()
     // Reset the table
-    rt.reset()
+    if (rt != null) {
+    	rt.reset()
+    }
 }
 
 if (PASSWORD == "") {
@@ -640,7 +764,8 @@ if (user_client.isConnected()) {
                      get_spine, minimum_diameter, closeness_tolerance, min_similarity,
                      ilastik_project_short_name,
                      output_directory,
-                     headless_mode, debug, tool_version)
+                     headless_mode, debug, tool_version,
+                     use_existing, "image")
                 break
             case "dataset":
                 DatasetWrapper dataset_wrp
@@ -649,6 +774,10 @@ if (user_client.isConnected()) {
                 } catch(Exception e) {
                     throw Exception("Could not retrieve the dataset, please check the id.")
                 }
+                // Remove all tables from dataset:
+                dataset_wrp.getTables(user_client).each{
+                    user_client.delete(it)
+                }
                 processDataset(user_client, dataset_wrp,
                      ilastik_project, ilastik_project_type,
                      ilastik_label_OI,
@@ -656,17 +785,11 @@ if (user_client.isConnected()) {
                      get_spine, minimum_diameter, closeness_tolerance, min_similarity,
                      ilastik_project_short_name,
                      output_directory,
-                     headless_mode, debug, tool_version)
-                // get the list of dataset tables
-                // remove the one with table_name
-                dataset_wrp.getTables(user_client).each{ TableWrapper t_wpr ->
-                    if (t_wpr.getName() == table_name + "_global"){
-                        user_client.delete(t_wpr)
-                    }
-                }
+                     headless_mode, debug, tool_version,
+                     use_existing, "dataset")
                 // upload the table on OMERO
                 super_table.setName(table_name + "_global")
-                dataset_wrp.addTable(user_client, super_table)
+                dataset_wrp.addAndReplaceTable(user_client, super_table)
                 break
             case "well":
                 WellWrapper well_wrp
@@ -675,6 +798,10 @@ if (user_client.isConnected()) {
                 } catch(Exception e) {
                     throw Exception("Could not retrieve the well, please check the id.")
                 }
+                // Remove all tables from well:
+                well_wrp.getTables(user_client).each{
+                    user_client.delete(it)
+                }
                 processSingleWell(user_client, well_wrp,
                      ilastik_project, ilastik_project_type,
                      ilastik_label_OI,
@@ -682,17 +809,11 @@ if (user_client.isConnected()) {
                      get_spine, minimum_diameter, closeness_tolerance, min_similarity,
                      ilastik_project_short_name,
                      output_directory,
-                     headless_mode, debug, tool_version)
-                // get the list of well tables
-                // remove the one with table_name
-                well_wrp.getTables(user_client).each{ TableWrapper t_wpr ->
-                    if (t_wpr.getName() == table_name + "_global"){
-                        user_client.delete(t_wpr)
-                    }
-                }
+                     headless_mode, debug, tool_version,
+                     use_existing, "well")
                 // upload the table on OMERO
                 super_table.setName(table_name + "_global")
-                well_wrp.addTable(user_client, super_table)
+                well_wrp.addAndReplaceTable(user_client, super_table)
                 break
             case "plate":
                 PlateWrapper plate_wrp
@@ -701,6 +822,10 @@ if (user_client.isConnected()) {
                 } catch(Exception e) {
                     throw Exception("Could not retrieve the plate, please check the id.")
                 }
+                // Remove all tables from Plate:
+                plate_wrp.getTables(user_client).each{
+                    user_client.delete(it)
+                }
                 processSinglePlate(user_client, plate_wrp,
                      ilastik_project, ilastik_project_type,
                      ilastik_label_OI,
@@ -708,22 +833,17 @@ if (user_client.isConnected()) {
                      get_spine, minimum_diameter, closeness_tolerance, min_similarity,
                      ilastik_project_short_name,
                      output_directory,
-                     headless_mode, debug, tool_version)
-                // get the list of well tables
-                // remove the one with table_name
-                plate_wrp.getTables(user_client).each{ TableWrapper t_wpr ->
-                    if (t_wpr.getName() == table_name + "_global"){
-                        user_client.delete(t_wpr)
-                    }
-                }
+                     headless_mode, debug, tool_version,
+                     use_existing, "plate")
                 // upload the table on OMERO
                 super_table.setName(table_name + "_global")
-                plate_wrp.addTable(user_client, super_table)
+                plate_wrp.addAndReplaceTable(user_client, super_table)
                 break
         }
 
     } catch(Exception e) {
         println("Something went wrong: " + e)
+        e.printStackTrace()
 
         if (headless_mode){
             // This is due to Rank Filter + GaussianBlur
