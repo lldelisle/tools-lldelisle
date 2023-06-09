@@ -1,4 +1,4 @@
-<tool id="omero_hyperstack_to_gastruloid_measurements" name="Omero hyperstack to Gastruloid measurements" profile="20.01" version="@TOOL_VERSION@+galaxy0">
+<tool id="omero_hyperstack_to_gastruloid_measurements" name="Omero hyperstack to Gastruloid measurements" profile="20.01" version="@TOOL_VERSION@+galaxy1">
     <macros>
         <token name="@TOOL_VERSION@">20230405</token>
     </macros>
@@ -36,10 +36,8 @@
         ]]>
     </command>
     <configfiles>
-        <configfile name="credentials"><![CDATA[ldelisle
-NoUs!25102009
-#set $username = $__user__.extra_preferences.get('omero_account|username', "")
-    #set $password = $__user__.extra_preferences.get('omero_account|password', "")
+        <configfile name="credentials"><![CDATA[#set $username = $__user__.extra_preferences.get('omero_account|username', "")
+#set $password = $__user__.extra_preferences.get('omero_account|password', "")
 $username
 $password
         ]]></configfile>
