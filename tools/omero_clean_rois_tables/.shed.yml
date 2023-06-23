@@ -1,0 +1,7 @@
+categories:
+   - Imaging
+description: Remove all ROIs and all tables on OMERO associated to an omero object and recursively up and down
+name: omero_clean_rois_tables
+owner: lldelisle
+long_description: Uses a groovy to remove all ROIs and all tables on OMERO associated to an omero object and recursively up and down.
+remote_repository_url: https://github.com/lldelisle/tools-lldelisle/tree/master/tools/omero_clean_rois_tables
