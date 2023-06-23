@@ -1,10 +1,11 @@
 // This macro was written by the BIOP (https://github.com/BIOP)
 // Romain Guiet and Rémy Dornier
 // Lucille Delisle modified to support headless
+// And to be more robust to OMERO reboot
 // merge the analysis script with templates available at
 // https://github.com/BIOP/OMERO-scripts/tree/main/Fiji
 
-// Last modification: 2023-04-05
+// Last modification: 2023-06-23
 
 /*
  * = COPYRIGHT =
@@ -36,6 +37,16 @@
 // If multiple channels are present, the LUT will be
 // used to determine which channel should be used.
 
+// The option 'rescue' allows to only process images without ROIs and
+// tables and generate the final table
+
+// Without this option, the job will fail if a ROI or a table exists
+
+// If a final table exists it will fail in both modes
+
+// The option use_existing allows to
+// Recompute only spine
+
 // This macro works both in headless
 // or GUI
 
@@ -53,6 +64,7 @@ import ch.epfl.biop.MaxInscribedCircles
 import fr.igred.omero.annotations.TableWrapper
 import fr.igred.omero.Client
 import fr.igred.omero.repository.DatasetWrapper
+import fr.igred.omero.repository.GenericRepositoryObjectWrapper
 import fr.igred.omero.repository.ImageWrapper
 import fr.igred.omero.repository.PlateWrapper
 import fr.igred.omero.repository.PixelsWrapper
@@ -78,6 +90,7 @@ import ij.process.ImageProcessor
 import java.awt.Color
 import java.awt.GraphicsEnvironment
 import java.io.File
+import java.util.concurrent.TimeUnit
 import java.util.stream.Collectors
 
 import loci.plugins.in.ImporterOptions
@@ -90,7 +103,287 @@ import org.apache.commons.io.FilenameUtils
 import org.apache.commons.io.FileUtils
 import org.ilastik.ilastik4ij.ui.*
 
-def processDataset(Client user_client, DatasetWrapper dataset_wpr,
+
+// Global variable with times in minutes to wait:
+waiting_times = [0, 10, 60, 360, 600]
+
+def robustlyGetAll(GenericRepositoryObjectWrapper obj_wrp, String object_type, Client user_client) {
+    for (waiting_time in waiting_times) {
+        try {
+            wrappers = null
+            switch (object_type) {
+                case "image":
+                    wrappers = obj_wrp.getImages(user_client)
+                    break
+                case "dataset":
+                    wrappers = obj_wrp.getDatasets(user_client)
+                    break
+                case "well":
+                    wrappers = obj_wrp.getWells(user_client)
+                    break
+                case "project":
+                    wrappers = obj_wrp.getProjects(user_client)
+                    break
+                case "plate":
+                    wrappers = obj_wrp.getPlates(user_client)
+                    break
+                case "screen":
+                    wrappers = obj_wrp.getScreens(user_client)
+                    break
+            }
+            return wrappers
+        } catch(Exception e) {
+            println("Could not get " + object_type + " for " + obj_wrp + " waiting " + waiting_time + " minutes and trying again.")
+            println e
+            TimeUnit.MINUTES.sleep(waiting_time)
+            last_exception = e
+            if (!user_client.isConnected()) {
+                println("Has been deconnected. Will reconnect.")
+                user_client.connect(host, port, USERNAME, PASSWORD.toCharArray())
+            }
+        }
+    }
+    throw last_exception
+}
+
+def robustlyGetOne(Long id, String object_type, Client user_client) {
+    for (waiting_time in waiting_times) {
+        try {
+
+            wrapper = null
+            switch (object_type) {
+                case "image":
+                    warpper = user_client.getImage(id)
+                    break
+                case "dataset":
+                    warpper = user_client.getDataset(id)
+                    break
+                case "well":
+                    warpper = user_client.getWell(id)
+                    break
+                case "project":
+                    warpper = user_client.getProject(id)
+                    break
+                case "plate":
+                    warpper = user_client.getPlate(id)
+                    break
+                case "screen":
+                    warpper = user_client.getScreen(id)
+                    break
+            }
+            return warpper
+        } catch(Exception e) {
+            println("Could not get " + object_type + " id " + id + " waiting " + waiting_time + " minutes and trying again.")
+            println e
+            TimeUnit.MINUTES.sleep(waiting_time)
+            last_exception = e
+            if (!user_client.isConnected()) {
+                println("Has been deconnected. Will reconnect.")
+                user_client.connect(host, port, USERNAME, PASSWORD.toCharArray())
+            }
+        }
+    }
+    throw last_exception
+}
+
+def robustlyGetTables(GenericRepositoryObjectWrapper obj_wrp,Client user_client) {
+    for (waiting_time in waiting_times) {
+        try {
+            return obj_wrp.getTables(user_client)
+        } catch(Exception e) {
+            println("Could not get tables for " + obj_wrp + " waiting " + waiting_time + " minutes and trying again.")
+            println e
+            TimeUnit.MINUTES.sleep(waiting_time)
+            last_exception = e
+            if (!user_client.isConnected()) {
+                println("Has been deconnected. Will reconnect.")
+                user_client.connect(host, port, USERNAME, PASSWORD.toCharArray())
+            }
+        }
+    }
+    throw last_exception
+}
+
+def robustlyGetROIs(ImageWrapper image_wrp,Client user_client) {
+    for (waiting_time in waiting_times) {
+        try {
+            return image_wrp.getROIs(user_client)
+        } catch(Exception e) {
+            println("Could not get ROIs for " + image_wrp + " waiting " + waiting_time + " minutes and trying again.")
+            println e
+            TimeUnit.MINUTES.sleep(waiting_time)
+            last_exception = e
+            if (!user_client.isConnected()) {
+                println("Has been deconnected. Will reconnect.")
+                user_client.connect(host, port, USERNAME, PASSWORD.toCharArray())
+            }
+        }
+    }
+    throw last_exception
+}
+
+def robustlyHasAnyTable(GenericRepositoryObjectWrapper obj_wrp, String object_type, Client user_client) {
+    if (robustlyGetTables(obj_wrp, user_client).size() > 0) {
+        return true
+    } else {
+        for (image_wrp in robustlyGetAll(obj_wrp, "image", user_client)) {
+            if (robustlyGetTables(image_wrp, user_client).size() > 0) {
+                return true
+            }   
+        }
+    }
+    return false
+}
+
+def robustlyHasAnyROI(GenericRepositoryObjectWrapper obj_wrp, Client user_client) {
+    for (image_wrp in robustlyGetAll(obj_wrp, "image", user_client)) {
+        if (robustlyGetROIs(image_wrp, user_client).size() > 0) {
+            return true
+        }   
+    }
+    return false
+}
+
+
+def robustlyDeleteTables(GenericRepositoryObjectWrapper obj_wrp,Client user_client) {
+    for (waiting_time in waiting_times) {
+        try {
+            obj_wrp.getTables(user_client).each{
+                user_client.delete(it)
+            }
+            return
+        } catch(Exception e) {
+            println("Could not remove tables for " + obj_wrp + " waiting " + waiting_time + " minutes and trying again.")
+            println e
+            TimeUnit.MINUTES.sleep(waiting_time)
+            last_exception = e
+            if (!user_client.isConnected()) {
+                println("Has been deconnected. Will reconnect.")
+                user_client.connect(host, port, USERNAME, PASSWORD.toCharArray())
+            }
+        }
+    }
+    throw last_exception
+}
+
+def robustlyDeleteROIs(ImageWrapper image_wrp, Client user_client, List<RoiWrapper> rois) {
+    for (waiting_time in waiting_times) {
+        try {
+            // Remove existing ROIs
+            // image_wrp.getROIs(user_client).each{ user_client.delete(it) }
+            // Caused failure due to too high number of 'servantsPerSession'
+            // Which reached 10k
+            // I use see https://github.com/GReD-Clermont/simple-omero-client/issues/59
+            user_client.delete((Collection<ROIWrapper>) rois)
+            return
+        } catch(Exception e) {
+            println("Could not remove ROIs for " + image_wrp + " waiting " + waiting_time + " minutes and trying again.")
+            println e
+            TimeUnit.MINUTES.sleep(waiting_time)
+            last_exception = e
+            if (!user_client.isConnected()) {
+                println("Has been deconnected. Will reconnect.")
+                user_client.connect(host, port, USERNAME, PASSWORD.toCharArray())
+            }
+        }
+    }
+    throw last_exception
+}
+
+def robustlyAddAndReplaceTable(GenericRepositoryObjectWrapper obj_wrp, Client user_client, TableWrapper table) {
+    for (waiting_time in waiting_times) {
+        try {
+            obj_wrp.addAndReplaceTable(user_client, table)
+            return
+        } catch(Exception e) {
+            println("Could not add table to " + obj_wrp + " waiting " + waiting_time + " minutes and trying again.")
+            println e
+            TimeUnit.MINUTES.sleep(waiting_time)
+            last_exception = e
+            if (!user_client.isConnected()) {
+                println("Has been deconnected. Will reconnect.")
+                user_client.connect(host, port, USERNAME, PASSWORD.toCharArray())
+            }
+        }
+    }
+    throw last_exception
+}
+
+def robustlytoImagePlus(ImageWrapper image_wrp, Client user_client) {
+    for (waiting_time in waiting_times) {
+        try {
+            return image_wrp.toImagePlus(user_client)
+        } catch(Exception e) {
+            println("Could not convert to image plus " + image_wrp + " waiting " + waiting_time + " minutes and trying again.")
+            println e
+            TimeUnit.MINUTES.sleep(waiting_time)
+            last_exception = e
+            if (!user_client.isConnected()) {
+                println("Has been deconnected. Will reconnect.")
+                user_client.connect(host, port, USERNAME, PASSWORD.toCharArray())
+            }
+        }
+    }
+    throw last_exception
+}
+
+def robustlysaveROIs(ImageWrapper image_wrp, Client user_client, List<RoiWrapper> rois) {
+    for (waiting_time in waiting_times) {
+        try {
+            image_wrp.saveROIs(user_client, rois)
+            return
+        } catch(Exception e) {
+            println("Could not add ROIs to " + image_wrp + " waiting " + waiting_time + " minutes and trying again.")
+            println e
+            TimeUnit.MINUTES.sleep(waiting_time)
+            last_exception = e
+            if (!user_client.isConnected()) {
+                println("Has been deconnected. Will reconnect.")
+                user_client.connect(host, port, USERNAME, PASSWORD.toCharArray())
+            }
+        }
+    }
+    throw last_exception
+}
+
+def robustlyNewTableWrapper(Client user_client, ResultsTable results, Long imageId, List<? extends Roi> ijRois, String roiProperty) {
+    for (waiting_time in waiting_times) {
+        try {
+            return new TableWrapper(user_client, results, imageId, ijRois, roiProperty)
+        } catch(Exception e) {
+            println("Could not generate new table for image " + imageId + " waiting " + waiting_time + " minutes and trying again.")
+            println e
+            TimeUnit.MINUTES.sleep(waiting_time)
+            last_exception = e
+            if (!user_client.isConnected()) {
+                println("Has been deconnected. Will reconnect.")
+                user_client.connect(host, port, USERNAME, PASSWORD.toCharArray())
+            }
+        }
+    }
+    throw last_exception
+}
+
+def robustlyAddRows(TableWrapper table, Client user_client, ResultsTable results, Long imageId, List<? extends Roi> ijRois, String roiProperty) {
+    for (waiting_time in waiting_times) {
+        try {
+            table.addRows(user_client, results, imageId, ijRois, roiProperty)
+            return
+        } catch(Exception e) {
+            println("Could not generate new table for image " + imageId + " waiting " + waiting_time + " minutes and trying again.")
+            println e
+            TimeUnit.MINUTES.sleep(waiting_time)
+            last_exception = e
+            if (!user_client.isConnected()) {
+                println("Has been deconnected. Will reconnect.")
+                user_client.connect(host, port, USERNAME, PASSWORD.toCharArray())
+            }
+        }
+    }
+    throw last_exception
+}
+
+def processDataset(Client user_client, DatasetWrapper dataset_wrp,
                    File ilastik_project, String ilastik_project_type,
                    Integer ilastik_label_OI,
                    Double probability_threshold, Double radius_median,
@@ -99,9 +392,9 @@ def processDataset(Client user_client, DatasetWrapper dataset_wpr,
                    String ilastik_project_short_name,
                    File output_directory,
                    Boolean headless_mode, Boolean debug, String tool_version,
-                   Boolean use_existing, String final_object) {
-    dataset_wpr.getImages(user_client).each{ ImageWrapper img_wpr ->
-        processImage(user_client, img_wpr,
+                   Boolean use_existing, String final_object, Boolean rescue) {
+    robustlyGetAll(dataset_wrp, "image", user_client).each{ ImageWrapper img_wrp ->
+        processImage(user_client, img_wrp,
                      ilastik_project, ilastik_project_type,
                      ilastik_label_OI, probability_threshold,
                      radius_median, min_size_particle, get_spine,
@@ -109,11 +402,11 @@ def processDataset(Client user_client, DatasetWrapper dataset_wpr,
                      ilastik_project_short_name,
                      output_directory,
                      headless_mode, debug, tool_version,
-                     use_existing, final_object)
+                     use_existing, final_object, rescue)
     }
 }
 
-def processSinglePlate(Client user_client, PlateWrapper plate_wpr,
+def processSinglePlate(Client user_client, PlateWrapper plate_wrp,
                        File ilastik_project, String ilastik_project_type,
                        Integer ilastik_label_OI,
                        Double probability_threshold, Double radius_median,
@@ -121,9 +414,10 @@ def processSinglePlate(Client user_client, PlateWrapper plate_wpr,
                        Integer minimum_diameter, Integer closeness_tolerance, Double min_similarity,
                        String ilastik_project_short_name,
                        File output_directory,
-                       Boolean headless_mode, Boolean debug, String tool_version, Boolean use_existing, String final_object) {
-    plate_wpr.getWells(user_client).each{ well_wpr ->
-        processSingleWell(user_client, well_wpr,
+                       Boolean headless_mode, Boolean debug, String tool_version, Boolean use_existing,
+                       String final_object, Boolean rescue) {
+    robustlyGetAll(plate_wrp, "well", user_client).each{ well_wrp ->
+        processSingleWell(user_client, well_wrp,
                      ilastik_project, ilastik_project_type,
                      ilastik_label_OI, probability_threshold,
                      radius_median, min_size_particle, get_spine,
@@ -131,11 +425,11 @@ def processSinglePlate(Client user_client, PlateWrapper plate_wpr,
                      ilastik_project_short_name,
                      output_directory,
                      headless_mode, debug, tool_version,
-                     use_existing, final_object)
+                     use_existing, final_object, rescue)
     }
 }
 
-def processSingleWell(Client user_client, WellWrapper well_wpr,
+def processSingleWell(Client user_client, WellWrapper well_wrp,
                       File ilastik_project, String ilastik_project_type,
                       Integer ilastik_label_OI,
                       Double probability_threshold, Double radius_median,
@@ -143,8 +437,9 @@ def processSingleWell(Client user_client, WellWrapper well_wpr,
                       Integer minimum_diameter, Integer closeness_tolerance, Double min_similarity,
                       String ilastik_project_short_name,
                       File output_directory,
-                      Boolean headless_mode, Boolean debug, String tool_version, Boolean use_existing, String final_object) {
-    well_wpr.getWellSamples().each{
+                      Boolean headless_mode, Boolean debug, String tool_version, Boolean use_existing,
+                      String final_object, Boolean rescue) {
+    well_wrp.getWellSamples().each{
         processImage(user_client, it.getImage(),
                      ilastik_project, ilastik_project_type,
                      ilastik_label_OI, probability_threshold,
@@ -153,11 +448,11 @@ def processSingleWell(Client user_client, WellWrapper well_wpr,
                      ilastik_project_short_name,
                      output_directory,
                      headless_mode, debug, tool_version,
-                     use_existing, final_object)
+                     use_existing, final_object, rescue)
     }
 }
 
-def processImage(Client user_client, ImageWrapper image_wpr,
+def processImage(Client user_client, ImageWrapper image_wrp,
                  File ilastik_project, String ilastik_project_type, // String ilastik_strategy,
                  Integer ilastik_label_OI,
                  Double probability_threshold, Double radius_median, Integer min_size_particle,
@@ -166,7 +461,7 @@ def processImage(Client user_client, ImageWrapper image_wpr,
                  String ilastik_project_short_name,
                  File output_directory,
                  Boolean headless_mode, Boolean debug, String tool_version,
-                 Boolean use_existing, String final_object) {
+                 Boolean use_existing, String final_object, Boolean rescue) {
 
     IJ.run("Close All", "")
     IJ.run("Clear Results")
@@ -179,49 +474,34 @@ def processImage(Client user_client, ImageWrapper image_wpr,
 
     // Print image information
     println "\n Image infos"
-    String image_basename = image_wpr.getName()
-    println ("Image_name : " + image_basename + " / id : " + image_wpr.getId())
-    List<DatasetWrapper> dataset_wpr_list = image_wpr.getDatasets(user_client)
+    String image_basename = image_wrp.getName()
+    println ("Image_name : " + image_basename + " / id : " + image_wrp.getId())
+    List<DatasetWrapper> dataset_wrp_list = robustlyGetAll(image_wrp, "dataset", user_client)
 
     // if the image is part of a dataset
-    if(!dataset_wpr_list.isEmpty()){
-        dataset_wpr_list.each{println("dataset_name : "+it.getName()+" / id : "+it.getId())};
-        if (final_object == "image") {
-            // Remove tables from datasets:
-            dataset_wpr_list.each{  DatasetWrapper dataset_wpr ->
-                dataset_wpr.getTables(user_client).each{
-                    user_client.delete(it)
-                }
-            }
+    if(!dataset_wrp_list.isEmpty()){
+        dataset_wrp_list.each{
+            println("dataset_name : "+it.getName()+" / id : "+it.getId())
         }
-        image_wpr.getProjects(user_client).each{println("Project_name : "+it.getName()+" / id : "+it.getId())};
+        robustlyGetAll(image_wrp, "project", user_client).each{
+            println("Project_name : "+it.getName()+" / id : "+it.getId())
+        }
     }
 
     // if the image is part of a plate
     else {
-        WellWrapper well_wpr = image_wpr.getWells(user_client).get(0)
-        println ("Well_name : "+well_wpr.getName() +" / id : "+ well_wpr.getId())
-        if (final_object == "image") {
-            // Remove tables from well:
-            well_wpr.getTables(user_client).each{
-                user_client.delete(it)
-            }
+        robustlyGetAll(image_wrp, "well", user_client).each{
+            println ("Well_name : "+it.getName() +" / id : "+ it.getId())
         }
-
-        def plate_wpr = image_wpr.getPlates(user_client).get(0)
-        println ("plate_name : "+plate_wpr.getName() + " / id : "+ plate_wpr.getId())
-        if (final_object == "image" || final_object == "well") {
-            // Remove tables from plate:
-            plate_wpr.getTables(user_client).each{
-                user_client.delete(it)
-            }
+        robustlyGetAll(image_wrp, "plate", user_client).each{
+            println ("plate_name : "+it.getName() + " / id : "+ it.getId())
         }
-
-        def screen_wpr = image_wpr.getScreens(user_client).get(0)
-        println ("screen_name : "+screen_wpr.getName() + " / id : "+ screen_wpr.getId())
+        robustlyGetAll(image_wrp, "screen", user_client).each{
+            println ("screen_name : "+it.getName() + " / id : "+ it.getId())
+        }
     }
 
-    ImagePlus imp = image_wpr.toImagePlus(user_client);
+    ImagePlus imp = robustlytoImagePlus(image_wrp, user_client)
 
     if (!headless_mode) {
         imp.show()
@@ -233,7 +513,7 @@ def processImage(Client user_client, ImageWrapper image_wpr,
     int nT = dim_array[4]
 
     // Get scale from omero
-    PixelsWrapper pixels = image_wpr.getPixels()
+    PixelsWrapper pixels = image_wrp.getPixels()
     LengthI pixel_size = pixels.getPixelSizeX()
     Double scale = pixel_size.getValue()
     String scale_unit = pixel_size.getUnit().toString()
@@ -255,11 +535,40 @@ def processImage(Client user_client, ImageWrapper image_wpr,
             }
         }
     }
-    // Define what will be defined in both cases:
+    // Define what will be defined in all cases:
     double pixelWidth
     ImagePlus newMask_imp
     List<Roi> updatedRois
+    // Or in both:
+    TableWrapper my_table
+
+    if (use_existing || rescue) {
+        // get the list of image tables
+        // store the one with table_name
+        robustlyGetTables(image_wrp, user_client).each{ TableWrapper t_wrp ->
+            if (t_wrp.getName() == table_name){
+                my_table = t_wrp
+            }
+        }
+        if (rescue && my_table == null) {
+            // We need to run the segmentation
+            use_existing = false
+            rescue = false
+            rois = robustlyGetROIs(image_wrp, user_client)
+            if (rois.size() > 0) {
+                // Clean existing ROIs
+                robustlyDeleteROIs(image_wrp, user_client, rois)
+            }
+        } else if (rescue && my_table != null) {
+            // We just need to generate a table
+            use_existing = true
+            get_spine = false
+        } else if ((!rescue) && my_table == null) {
+            throw new Exception("There is no table named " + table_name + " you need to rerun segmentation.")
+        }
+    }
     if (!use_existing) {
+        // We compute the segmentation
         File output_path = new File (output_directory, image_basename+"_ilastik_" + ilastik_project_short_name + "_output.tif" )
         ImagePlus predictions_imp
         FileSaver fs
@@ -405,45 +714,13 @@ def processImage(Client user_client, ImageWrapper image_wpr,
             rt.setValue("Time", row, label.split(":")[1].split("_t")[-1] as Double)
             rt.setValue("ROI_type", row, label.split(":")[1].split("_t")[0])
         }
-        println "Remove existing ROIs and tables on OMERO"
-        // Remove existing ROIs
-        // image_wpr.getROIs(user_client).each{ user_client.delete(it) }
-        // In order to reduce the number of 'servantsPerSession'
-        // Which reached 10k and then caused failure
-        // I use
-        // user_client.delete(image_wpr.getROIs(user_client))
-        // Because of https://github.com/GReD-Clermont/simple-omero-client/issues/59
-        // I use
-        ArrayList<ROIWrapper> rois_on_omero = image_wpr.getROIs(user_client)
-        if (rois_on_omero.size() > 0) {
-            user_client.delete(rois_on_omero.stream().map(ROIWrapper::asIObject).collect(Collectors.toList()))
-        }
-        image_wpr.getTables(user_client).each{
-            user_client.delete(it)
-        }
         println "Store " + clean_overlay.size() + " ROIs on OMERO"
         // Save ROIs to omero
-        image_wpr.saveROIs(user_client, ROIWrapper.fromImageJ(clean_overlay as List))
+        robustlysaveROIs(image_wrp, user_client, ROIWrapper.fromImageJ(clean_overlay as List))
 
         // Get them back with IDs:
-        updatedRois = ROIWrapper.toImageJ(image_wpr.getROIs(user_client), "ROI")
+        updatedRois = ROIWrapper.toImageJ(robustlyGetROIs(image_wrp, user_client), "ROI")
     } else {
-        assert get_spine : "You cannot reuse segmentation without computing spine."
-        // get the list of image tables
-        // store the one with table_name
-        TableWrapper my_table
-        image_wpr.getTables(user_client).each{ TableWrapper t_wpr ->
-            if (t_wpr.getName() == table_name){
-                my_table = t_wpr
-            }
-        }
-        assert my_table != null: "There is no table named " + table_name + " you need to rerun segmentation."
-        // Get the ROI ids associated with the measures of the table
-        Long[] gastruloid_roi_ids = (my_table.getData()[1]).collect{
-            it.getId()
-        }
-        // Sort the array:
-        Arrays.sort(gastruloid_roi_ids)
         // reinitialize the rt
         rt = new ResultsTable()
         // The first column (index 0) of the result table is the image ID
@@ -455,61 +732,73 @@ def processImage(Client user_client, ImageWrapper image_wpr,
                 rt.setValue(colname, row, my_table.getData(row, icol))
             }
         }
-        // Get Date
-        Date date = new Date()
-        String now = date.format("yyyy-MM-dd_HH-mm")
-
-        // Add Date, version and params
+        // Add ROI column
         for ( int row = 0;row<rt.size();row++) {
-            rt.setValue("Date_rerun_spine", row, now)
-            rt.setValue("Version_rerun_spine", row, tool_version)
-            rt.setValue("MinDiameter", row, minimum_diameter)
-            rt.setValue("ClosenessTolerance", row, closeness_tolerance)
-            rt.setValue("MinSimilarity", row, min_similarity)
             rt.setValue("ROI", row, my_table.getData(row, 1).getId())
         }
-        
-        // Remove any roi which is not gastruloid:
-        println "Remove ROIs other than gastruloids segmentation results and tables"
-        // In order to reduce the number of 'servantsPerSession'
-        // Which reached 10k and then caused failure
-        // I store them in a list
-        ArrayList<ROIWrapper> ROIW_list_to_delete = []
-        image_wpr.getROIs(user_client).each{
-            if (Arrays.binarySearch(gastruloid_roi_ids, it.getId()) < 0) {
-                // user_client.delete(it)
-                ROIW_list_to_delete.add(it)
+        if (!rescue) {
+            // Get the ROI ids associated with the measures of the table
+            Long[] gastruloid_roi_ids = (my_table.getData()[1]).collect{
+                it.getId()
             }
-        }
-        // Then I should use
-        // user_client.delete(ROIW_list_to_delete)
-        // Because of https://github.com/GReD-Clermont/simple-omero-client/issues/59
-        // I use
-        if (ROIW_list_to_delete.size() > 0) {
-            user_client.delete(ROIW_list_to_delete.stream().map(ROIWrapper::asIObject).collect(Collectors.toList()))
-        }
-        image_wpr.getTables(user_client).each{
-            user_client.delete(it)
-        }
+            // Sort the array:
+            Arrays.sort(gastruloid_roi_ids)
+            // Get Date
+            Date date = new Date()
+            String now = date.format("yyyy-MM-dd_HH-mm")
 
-        // Retrieve the ROIs from omero:
-        updatedRois = ROIWrapper.toImageJ(image_wpr.getROIs(user_client), "ROI")
-        // Create a clean mask
-        newMask_imp = IJ.createImage("CleanMask", "8-bit black", imp.getWidth(), imp.getHeight(), nT);
-        if (nT > 1) {
-            HyperStackConverter.toHyperStack(newMask_imp, 1, 1, nT, "xyctz", "Color");
+            // Add Date, version and params
+            for ( int row = 0;row<rt.size();row++) {
+                rt.setValue("Date_rerun_spine", row, now)
+                rt.setValue("Version_rerun_spine", row, tool_version)
+                rt.setValue("MinDiameter", row, minimum_diameter)
+                rt.setValue("ClosenessTolerance", row, closeness_tolerance)
+                rt.setValue("MinSimilarity", row, min_similarity)
+            }
+            // Remove any roi which is not gastruloid:
+            println "Remove ROIs other than gastruloids segmentation results and tables"
+            // In order to reduce the number of 'servantsPerSession'
+            // Which reached 10k and then caused failure
+            // I store them in a list
+            ArrayList<ROIWrapper> ROIW_list_to_delete = []
+            robustlyGetROIs(image_wrp, user_client).each{
+                if (Arrays.binarySearch(gastruloid_roi_ids, it.getId()) < 0) {
+                    // user_client.delete(it)
+                    ROIW_list_to_delete.add(it)
+                }
+            }
+            // Then I should use
+            // user_client.delete(ROIW_list_to_delete)
+            // Because of https://github.com/GReD-Clermont/simple-omero-client/issues/59
+            // I use
+            if (ROIW_list_to_delete.size() > 0) {
+                robustlyDeleteROIs(image_wrp, user_client,  ROIW_list_to_delete)
+            }
+            robustlyDeleteTables(image_wrp, user_client)
+
+            // Retrieve the ROIs from omero:
+            updatedRois = ROIWrapper.toImageJ(robustlyGetROIs(image_wrp, user_client), "ROI")
+            // Create a clean mask
+            newMask_imp = IJ.createImage("CleanMask", "8-bit black", imp.getWidth(), imp.getHeight(), nT);
+            if (nT > 1) {
+                HyperStackConverter.toHyperStack(newMask_imp, 1, 1, nT, "xyctz", "Color");
+            }
+            if (!headless_mode) {newMask_imp.show()}
+            for (largest_roi_inT in updatedRois) {
+                t = largest_roi_inT.getTPosition()
+                Overlay t_ov = new Overlay(largest_roi_inT)
+                // Fill the frame t with the largest_roi_inT
+                newMask_imp.setT(t)
+                t_ov.fill(newMask_imp,  Color.white, Color.black)
+            }
+            IJ.run("Set Scale...", "distance=1 known=" + scale + " unit=micron")
+            pixelWidth = newMask_imp.getCalibration().pixelWidth
+            println "pixelWidth is " + pixelWidth
+
+        } else {
+            // Retrieve the ROIs from omero:
+            updatedRois = ROIWrapper.toImageJ(robustlyGetROIs(image_wrp, user_client), "ROI")
         }
-        if (!headless_mode) {newMask_imp.show()}
-        for (largest_roi_inT in updatedRois) {
-            t = largest_roi_inT.getTPosition()
-            Overlay t_ov = new Overlay(largest_roi_inT)
-            // Fill the frame t with the largest_roi_inT
-            newMask_imp.setT(t)
-            t_ov.fill(newMask_imp,  Color.white, Color.black)
-        }
-        IJ.run("Set Scale...", "distance=1 known=" + scale + " unit=micron")
-        pixelWidth = newMask_imp.getCalibration().pixelWidth
-        println "pixelWidth is " + pixelWidth
     }
     if (get_spine) {
         /**
@@ -561,13 +850,13 @@ def processImage(Client user_client, ImageWrapper image_wpr,
                     if (debug) {
                         circles_t.each{it.setPosition(ilastik_input_ch, 1, t)}
                         // First put all circles to omero:
-                        image_wpr.saveROIs(user_client, ROIWrapper.fromImageJ(circles_t as List))
+                        robustlysaveROIs(image_wrp, user_client, ROIWrapper.fromImageJ(circles_t as List))
                         if (!headless_mode) {
                             (circles_t as List).each{ rm.addRoi(it)}
                         }
                     } else {
                         // First put the largest circle to omero:
-                        image_wpr.saveROIs(user_client, ROIWrapper.fromImageJ([largestCircle_roi] as List))
+                        robustlysaveROIs(image_wrp, user_client, ROIWrapper.fromImageJ([largestCircle_roi] as List))
                         if (!headless_mode) {
                             rm.addRoi(largestCircle_roi)
                         }
@@ -604,7 +893,7 @@ def processImage(Client user_client, ImageWrapper image_wpr,
                         rt.setValue("SpineLength", row, line_roi_length * pixelWidth)
                         rt.setValue("ElongationIndex", row, line_roi_length / (2*circle_roi_radius))
                         spine_roi.setPosition( ilastik_input_ch, 1, t)
-                        image_wpr.saveROIs(user_client, ROIWrapper.fromImageJ([spine_roi] as List))
+                        robustlysaveROIs(image_wrp, user_client, ROIWrapper.fromImageJ([spine_roi] as List))
                         if (!headless_mode) {
                             rm.addRoi(spine_roi)
                         }
@@ -627,18 +916,20 @@ def processImage(Client user_client, ImageWrapper image_wpr,
 
     // Create an omero table:
     println "Create an omero table"
-    TableWrapper table_wpr = new TableWrapper(user_client, rt, image_wpr.getId(), updatedRois, "ROI")
+    TableWrapper table_wrp = robustlyNewTableWrapper(user_client, rt, image_wrp.getId(), updatedRois, "ROI")
 
-    // upload the table on OMERO
-    table_wpr.setName(table_name)
-    image_wpr.addAndReplaceTable(user_client, table_wpr)
+    if (!rescue) {
+        // upload the table on OMERO
+        table_wrp.setName(table_name)
+        robustlyAddAndReplaceTable(image_wrp, user_client, table_wrp)
+    }
     // add the same infos to the super_table
     if (super_table == null) {
         println "super_table is null"
-        super_table = table_wpr
+        super_table = table_wrp
     } else {
         println "adding rows"
-        super_table.addRows(user_client, rt, image_wpr.getId(), updatedRois, "ROI")
+        robustlyAddRows(super_table, user_client, rt, image_wrp.getId(), updatedRois, "ROI")
     }
     println super_table.getRowCount()
     println "Writting measurements to file"
@@ -646,7 +937,7 @@ def processImage(Client user_client, ImageWrapper image_wpr,
 
     // Put all ROIs in overlay:
     Overlay global_overlay = new Overlay()
-    ROIWrapper.toImageJ(image_wpr.getROIs(user_client), "ROI").each{
+    ROIWrapper.toImageJ(robustlyGetROIs(image_wrp, user_client), "ROI").each{
         global_overlay.add(it)
     }
 
@@ -663,7 +954,7 @@ def processImage(Client user_client, ImageWrapper image_wpr,
 // In simple-omero-client
 // Strings that can be converted to double are stored in double
 // In order to build the super_table, tool_version should stay String
-String tool_version = "Phase_v20230405"
+String tool_version = "Phase_v20230623"
 
 // User set variables
 
@@ -678,6 +969,7 @@ String tool_version = "Phase_v20230405"
 
 #@ String(visibility=MESSAGE, value="Parameters for segmentation/ROI", required=false) msg2
 #@ Boolean(label="Use existing segmentation (values below in the section will be ignored)") use_existing
+#@ Boolean(label="<html>Run in rescue mode<br/>(only segment images without tables)</html>", value=false) rescue
 #@ File(label="Ilastik project") ilastik_project
 #@ String(label="Ilastik project short name") ilastik_project_short_name
 #@ String(label="Ilastik project type", choices={"Regular", "Auto-context"}, value="Regular") ilastik_project_type
@@ -695,6 +987,15 @@ String tool_version = "Phase_v20230405"
 #@ String(visibility=MESSAGE, value="Parameters for output", required=false) msg4
 #@ File(style = "directory", label="Directory where measures are put") output_directory
 #@ Boolean(label="<html>Run in debug mode<br/>(get all inscribed circles)</html>", value=false) debug
+
+// Handle incompatibilities:
+if (rescue && use_existing) {
+    throw new Exception("rescue and use_existing modes are incompatible")
+}
+if (use_existing && !get_spine) {
+    throw new Exception("use_existing mode requires get_spine")
+}
+
 
 #@ ResultsTable rt
 #@ CommandService cmds
@@ -718,7 +1019,7 @@ if (!headless_mode){
     rm.reset()
     // Reset the table
     if (rt != null) {
-    	rt.reset()
+        rt.reset()
     }
 }
 
@@ -751,32 +1052,43 @@ if (user_client.isConnected()) {
 
         switch (object_type) {
             case "image":
-                ImageWrapper image_wr
-                try {
-                    image_wpr = user_client.getImage(id)
-                } catch(Exception e) {
-                    throw Exception("Could not retrieve the image, please check the id.")
+                ImageWrapper image_wrp = robustlyGetOne(id, "image", user_client)
+                if (!use_existing) {
+                    List<TableWrapper> tables = robustlyGetTables(image_wrp, user_client)
+                    if (!tables.isEmpty()) {
+                        throw new Exception("There should be no table associated to the image before segmentation. Please clean the image.")
+                    }
+                    if (!rescue) {
+                        List<ROIWrapper> rois = robustlyGetROIs(image_wrp, user_client)
+                        if (!rois.isEmpty()) {
+                            throw new Exception("There should be no ROIs associated to the image before segmentation. Please clean the image.")
+                        }
+                    }
                 }
-                processImage(user_client, image_wpr,
-                     ilastik_project, ilastik_project_type,
-                     ilastik_label_OI,
-                     probability_threshold, radius_median, min_size_particle,
-                     get_spine, minimum_diameter, closeness_tolerance, min_similarity,
-                     ilastik_project_short_name,
-                     output_directory,
-                     headless_mode, debug, tool_version,
-                     use_existing, "image")
+                processImage(user_client, image_wrp,
+                    ilastik_project, ilastik_project_type,
+                    ilastik_label_OI,
+                    probability_threshold, radius_median, min_size_particle,
+                    get_spine, minimum_diameter, closeness_tolerance, min_similarity,
+                    ilastik_project_short_name,
+                    output_directory,
+                    headless_mode, debug, tool_version,
+                    use_existing, "image", rescue)
                 break
             case "dataset":
-                DatasetWrapper dataset_wrp
-                try {
-                    dataset_wrp = user_client.getDataset(id)
-                } catch(Exception e) {
-                    throw Exception("Could not retrieve the dataset, please check the id.")
-                }
-                // Remove all tables from dataset:
-                dataset_wrp.getTables(user_client).each{
-                    user_client.delete(it)
+                DatasetWrapper dataset_wrp = robustlyGetOne(id, "dataset", user_client)
+                if (use_existing) {
+                    // Remove the tables associated to the dataset
+                    robustlyDeleteTables(dataset_wrp, user_client)
+                } else if (rescue) {
+                        List<TableWrapper> tables = robustlyGetTables(dataset_wrp, user_client)
+                        if (!tables.isEmpty()) {
+                            throw new Exception("There should be no table associated to the dataset before running rescue mode.")
+                        }
+                } else {
+                    if (robustlyHasAnyTable(dataset_wrp, "dataset", user_client) || robustlyHasAnyROI(dataset_wrp, user_client)) {
+                        throw new Exception("ROI or table found in dataset or images. They should be deleted before running analysis.")
+                    }
                 }
                 processDataset(user_client, dataset_wrp,
                      ilastik_project, ilastik_project_type,
@@ -786,21 +1098,25 @@ if (user_client.isConnected()) {
                      ilastik_project_short_name,
                      output_directory,
                      headless_mode, debug, tool_version,
-                     use_existing, "dataset")
+                     use_existing, "dataset", rescue)
                 // upload the table on OMERO
                 super_table.setName(table_name + "_global")
-                dataset_wrp.addAndReplaceTable(user_client, super_table)
+                robustlyAddAndReplaceTable(dataset_wrp, user_client, super_table)
                 break
             case "well":
-                WellWrapper well_wrp
-                try {
-                    well_wrp = user_client.getWells(id)[0]
-                } catch(Exception e) {
-                    throw Exception("Could not retrieve the well, please check the id.")
-                }
-                // Remove all tables from well:
-                well_wrp.getTables(user_client).each{
-                    user_client.delete(it)
+                WellWrapper well_wrp = robustlyGetOne(id, "well", user_client)
+                if (use_existing) {
+                    // Remove the tables associated to the well
+                    robustlyDeleteTables(well_wrp, user_client)
+                } else if (rescue) {
+                        List<TableWrapper> tables = robustlyGetTables(well_wrp, user_client)
+                        if (!tables.isEmpty()) {
+                            throw new Exception("There should be no table associated to the well before running rescue mode.")
+                        }
+                } else {
+                    if (robustlyHasAnyTable(well_wrp, "well", user_client) || robustlyHasAnyROI(well_wrp, user_client)) {
+                        throw new Exception("ROI or table found in well or images. They should be deleted before running analysis.")
+                    }
                 }
                 processSingleWell(user_client, well_wrp,
                      ilastik_project, ilastik_project_type,
@@ -810,21 +1126,25 @@ if (user_client.isConnected()) {
                      ilastik_project_short_name,
                      output_directory,
                      headless_mode, debug, tool_version,
-                     use_existing, "well")
+                     use_existing, "well", rescue)
                 // upload the table on OMERO
                 super_table.setName(table_name + "_global")
-                well_wrp.addAndReplaceTable(user_client, super_table)
+                robustlyAddAndReplaceTable(well_wrp, user_client, super_table)
                 break
             case "plate":
-                PlateWrapper plate_wrp
-                try {
-                    plate_wrp = user_client.getPlates(id)[0]
-                } catch(Exception e) {
-                    throw Exception("Could not retrieve the plate, please check the id.")
-                }
-                // Remove all tables from Plate:
-                plate_wrp.getTables(user_client).each{
-                    user_client.delete(it)
+                PlateWrapper plate_wrp = robustlyGetOne(id, "plate", user_client)
+                if (use_existing) {
+                    // Remove the tables associated to the plate
+                    robustlyDeleteTables(plate_wrp, user_client)
+                } else if (rescue) {
+                        List<TableWrapper> tables = robustlyGetTables(plate_wrp, user_client)
+                        if (!tables.isEmpty()) {
+                            throw new Exception("There should be no table associated to the plate before running rescue mode.")
+                        }
+                } else {
+                    if (robustlyHasAnyTable(plate_wrp, "plate", user_client) || robustlyHasAnyROI(plate_wrp,  user_client)) {
+                        throw new Exception("ROI or table found in plate or images. They should be deleted before running analysis.")
+                    }
                 }
                 processSinglePlate(user_client, plate_wrp,
                      ilastik_project, ilastik_project_type,
@@ -834,10 +1154,10 @@ if (user_client.isConnected()) {
                      ilastik_project_short_name,
                      output_directory,
                      headless_mode, debug, tool_version,
-                     use_existing, "plate")
+                     use_existing, "plate", rescue)
                 // upload the table on OMERO
                 super_table.setName(table_name + "_global")
-                plate_wrp.addAndReplaceTable(user_client, super_table)
+                robustlyAddAndReplaceTable(plate_wrp, user_client, super_table)
                 break
         }
 
@@ -859,7 +1179,7 @@ if (user_client.isConnected()) {
     }
 
 } else {
-    println "Not able to connect to " + host
+    throw new Exception("Not able to connect to " + host)
 }
 
 return
