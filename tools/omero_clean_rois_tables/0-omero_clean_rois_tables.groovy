@@ -61,6 +61,7 @@ def robustlyGetAll(GenericRepositoryObjectWrapper obj_wrp, String object_type, C
             TimeUnit.MINUTES.sleep(waiting_time)
             last_exception = e
             if (!user_client.isConnected()) {
+                println("Has been deconnected. Will reconnect.")
                 user_client.connect(host, port, USERNAME, PASSWORD.toCharArray())
             }
         }
@@ -101,6 +102,7 @@ def robustlyGetOne(Long id, String object_type, Client user_client) {
             TimeUnit.MINUTES.sleep(waiting_time)
             last_exception = e
             if (!user_client.isConnected()) {
+                println("Has been deconnected. Will reconnect.")
                 user_client.connect(host, port, USERNAME, PASSWORD.toCharArray())
             }
         }
@@ -121,6 +123,7 @@ def robustlyDeleteTables(GenericRepositoryObjectWrapper obj_wrp,Client user_clie
             TimeUnit.MINUTES.sleep(waiting_time)
             last_exception = e
             if (!user_client.isConnected()) {
+                println("Has been deconnected. Will reconnect.")
                 user_client.connect(host, port, USERNAME, PASSWORD.toCharArray())
             }
         }
@@ -144,6 +147,7 @@ def robustlyDeleteROIs(ImageWrapper image_wrp, Client user_client) {
             TimeUnit.MINUTES.sleep(waiting_time)
             last_exception = e
             if (!user_client.isConnected()) {
+                println("Has been deconnected. Will reconnect.")
                 user_client.connect(host, port, USERNAME, PASSWORD.toCharArray())
             }
         }
