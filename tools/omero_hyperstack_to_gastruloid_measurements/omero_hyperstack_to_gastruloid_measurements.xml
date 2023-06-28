@@ -1,6 +1,6 @@
 <tool id="omero_hyperstack_to_gastruloid_measurements" name="Omero hyperstack to Gastruloid measurements" profile="20.01" version="@TOOL_VERSION@+galaxy0">
     <macros>
-        <token name="@TOOL_VERSION@">20230623</token>
+        <token name="@TOOL_VERSION@">20230628</token>
         <xml name="segmentation">
             <param name="ilastik_project" type="data" format="h5" label="Ilastik project" />
             <param name="ilastik_project_type" type="select" label="Type of Ilastik project">

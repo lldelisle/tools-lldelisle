@@ -5,7 +5,7 @@
 // merge the analysis script with templates available at
 // https://github.com/BIOP/OMERO-scripts/tree/main/Fiji
 
-// Last modification: 2023-06-23
+// Last modification: 2023-06-28
 
 /*
  * = COPYRIGHT =
@@ -266,7 +266,7 @@ def robustlyDeleteTables(GenericRepositoryObjectWrapper obj_wrp,Client user_clie
     throw last_exception
 }
 
-def robustlyDeleteROIs(ImageWrapper image_wrp, Client user_client, List<RoiWrapper> rois) {
+def robustlyDeleteROIs(ImageWrapper image_wrp, Client user_client, List<ROIWrapper> rois) {
     for (waiting_time in waiting_times) {
         try {
             // Remove existing ROIs
@@ -327,7 +327,7 @@ def robustlytoImagePlus(ImageWrapper image_wrp, Client user_client) {
     throw last_exception
 }
 
-def robustlysaveROIs(ImageWrapper image_wrp, Client user_client, List<RoiWrapper> rois) {
+def robustlysaveROIs(ImageWrapper image_wrp, Client user_client, List<ROIWrapper> rois) {
     for (waiting_time in waiting_times) {
         try {
             image_wrp.saveROIs(user_client, rois)
@@ -954,7 +954,7 @@ def processImage(Client user_client, ImageWrapper image_wrp,
 // In simple-omero-client
 // Strings that can be converted to double are stored in double
 // In order to build the super_table, tool_version should stay String
-String tool_version = "Phase_v20230623"
+String tool_version = "Phase_v20230628"
 
 // User set variables
 
