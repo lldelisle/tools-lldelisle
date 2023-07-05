@@ -252,7 +252,8 @@ try {
 
 } catch (Throwable e) {
 	println("Something went wrong: " + e)
-	System.err.println("Something went wrong: " + e)
+    e.printStackTrace()
+    throw e
 
 	if (GraphicsEnvironment.isHeadless()){
 		// Force to give exit signal of error
