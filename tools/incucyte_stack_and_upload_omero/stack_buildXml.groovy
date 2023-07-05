@@ -391,7 +391,12 @@ def process_well(baseDir, input_wellId, n_image_per_well){ //, perform_bc, media
 		// Merge all
 		ImagePlus merged_imps = Concatenator.run(current_images as ImagePlus[])
 		// Re-order to make a multi-channel, time-lapse image
-		ImagePlus final_imp = HyperStackConverter.toHyperStack(merged_imps, channels.size() , 1, nT, "xytcz", "Color")
+		ImagePlus final_imp
+		if (channels.size() == 1 && nT == 1) {
+			final_imp = merged_imps
+		} else {
+			final_imp = HyperStackConverter.toHyperStack(merged_imps, channels.size() , 1, nT, "xytcz", "Color")
+		}
 		// add properties to the image
 		final_imp.setProperty(DIMENSION_ORDER, DimensionOrder.XYCZT)
 		final_imp.setProperty(IMG_POS_IN_WELL, wellSampleId)
