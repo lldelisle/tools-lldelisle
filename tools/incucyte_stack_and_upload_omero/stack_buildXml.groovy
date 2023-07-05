@@ -103,9 +103,9 @@ objectives = new String[]{"4x", "10x", "20x"}
 pixelSizes = new double[]{2.82, 1.24, 0.62}
 
 /** pattern for date */
-REGEX_FOR_DATE = ".*_([0-9]{4})y([0-9]{2})m([0-9]{2})d_([0-9]{2})h([0-9]{2})m"
+REGEX_FOR_DATE = ".*_([0-9]{4})y([0-9]{2})m([0-9]{2})d_([0-9]{2})h([0-9]{2})m.tif"
 
-ALTERNATIVE_REGEX_FOR_DATE = ".*_([0-9]{2})d([0-9]{2})h([0-9]{2})m"
+ALTERNATIVE_REGEX_FOR_DATE = ".*_([0-9]{2})d([0-9]{2})h([0-9]{2})m.tif"
 
 /** Image properties keys */
 DIMENSION_ORDER = "dimension_order"
@@ -329,7 +329,7 @@ def process_well(baseDir, input_wellId, n_image_per_well){ //, perform_bc, media
 						// Go to the first time (which is slice)
 						single_channel_imp.setSlice(1)
 						int currentSlice = single_channel_imp.getCurrentSlice()
-						String label = stack.getShortSliceLabel(currentSlice)
+						String label = stack.getSliceLabel(currentSlice)
 						LocalDateTime dateTime_ref = getDate(label, date_pattern)
 						if (dateTime_ref == null) {
 							date_pattern = Pattern.compile(ALTERNATIVE_REGEX_FOR_DATE)
