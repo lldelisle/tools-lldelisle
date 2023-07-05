@@ -119,7 +119,7 @@ RELATIVE_ACQUISITION_HOUR = "relative_acquisition_hour"
 LETTERS = new String("ABCDEFGHIJKLMNOP")
 
 // Version number = date of last modif
-VERSION = "20230705"
+VERSION = "20230705.1"
 
 /** Key-Value pairs namespace */
 GENERAL_ANNOTATION_NAMESPACE = "openmicroscopy.org/omero/client/mapAnnotation"
@@ -833,7 +833,7 @@ def getDate(String label, Pattern date_pattern){
 // Returns the number of hours
 def getHoursFromImp(ImagePlus imp, ImageStack stack, LocalDateTime dateTime_ref, Pattern date_pattern){
 	int currentSlice = imp.getCurrentSlice()
-	String label = stack.getShortSliceLabel(currentSlice)
+	String label = stack.getSliceLabel(currentSlice)
 	LocalDateTime dateTime = getDate(label, date_pattern)
 	if (dateTime != null) {
 		return ChronoUnit.HOURS.between(dateTime_ref, dateTime) as int
