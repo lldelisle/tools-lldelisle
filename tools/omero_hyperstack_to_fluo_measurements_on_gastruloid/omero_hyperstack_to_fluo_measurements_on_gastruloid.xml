@@ -1,7 +1,7 @@
 <tool id="omero_hyperstack_to_fluo_measurements_on_gastruloid" name="Omero hyperstack to Fluo measurements" profile="20.01" version="@TOOL_VERSION@+galaxy0">
     <description>on gastruloid</description>
     <macros>
-        <token name="@TOOL_VERSION@">20230324</token>
+        <token name="@TOOL_VERSION@">20230724</token>
     </macros>
     <requirements>
         <requirement type="package" version="20220414">fiji</requirement>
@@ -19,8 +19,6 @@
             exit 1 &&
         #end if
         mkdir output &&
-        ## Because ilastik wants to write to ${HOME}/.cache and ${HOME}/.config
-        export HOME=`pwd` &&
         ImageJ --ij2 --headless --console --run '$__tool_directory__/'2-omero_timelapse_image_to_fluo_measurements.groovy 
             'USERNAME="",PASSWORD="",credentials="${credentials}",host="${omero_host}",port="${omero_port}",object_type="${omero_object.object_type}",id="${omero_object.omero_id}",n_pieces="${n_pieces}",quantif_ch="${quantif_ch}",output_directory="output"' > output.log
         ]]>

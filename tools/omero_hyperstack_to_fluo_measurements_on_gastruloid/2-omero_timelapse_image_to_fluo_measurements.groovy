@@ -5,7 +5,7 @@
 // Interactions with omero are largely inspired by
 // templates available at https://github.com/BIOP/OMERO-scripts/tree/main/Fiji
 
-// Last modification: 2023-03-24
+// Last modification: 2023-07-24
 
 // This macro works both in headless
 // or GUI
@@ -27,6 +27,7 @@
 import fr.igred.omero.annotations.TableWrapper
 import fr.igred.omero.Client
 import fr.igred.omero.repository.DatasetWrapper
+import fr.igred.omero.repository.GenericRepositoryObjectWrapper
 import fr.igred.omero.repository.ImageWrapper
 import fr.igred.omero.repository.PlateWrapper
 import fr.igred.omero.repository.PixelsWrapper
@@ -41,18 +42,233 @@ import ij.gui.ShapeRoi
 import ij.gui.TextRoi
 import ij.IJ
 import ij.io.FileSaver
+import ij.measure.ResultsTable
 import ij.plugin.frame.RoiManager
 import ij.util.FontUtil
 
-import java.io.File
-
 import java.awt.Color
 import java.awt.GraphicsEnvironment
+import java.io.File
+import java.util.concurrent.TimeUnit
 
 import loci.plugins.in.ImporterOptions
 
 import org.apache.commons.io.FilenameUtils
 import org.apache.commons.io.FileUtils
+
+// Global variable with times in minutes to wait:
+waiting_times = [0, 10, 60, 360, 600]
+
+def robustlyGetAll(GenericRepositoryObjectWrapper obj_wpr, String object_type, Client user_client) {
+    for (waiting_time in waiting_times) {
+        try {
+            wrappers = null
+            switch (object_type) {
+                case "image":
+                    wrappers = obj_wpr.getImages(user_client)
+                    break
+                case "dataset":
+                    wrappers = obj_wpr.getDatasets(user_client)
+                    break
+                case "well":
+                    wrappers = obj_wpr.getWells(user_client)
+                    break
+                case "project":
+                    wrappers = obj_wpr.getProjects(user_client)
+                    break
+                case "plate":
+                    wrappers = obj_wpr.getPlates(user_client)
+                    break
+                case "screen":
+                    wrappers = obj_wpr.getScreens(user_client)
+                    break
+            }
+            return wrappers
+        } catch(Exception e) {
+            println("Could not get " + object_type + " for " + obj_wpr + " waiting " + waiting_time + " minutes and trying again.")
+            println e
+            TimeUnit.MINUTES.sleep(waiting_time)
+            last_exception = e
+            if (!user_client.isConnected()) {
+                println("Has been deconnected. Will reconnect.")
+                user_client.connect(host, port, USERNAME, PASSWORD.toCharArray())
+            }
+        }
+    }
+    throw last_exception
+}
+
+def robustlytoImagePlus(ImageWrapper image_wpr, Client user_client) {
+    for (waiting_time in waiting_times) {
+        try {
+            return image_wpr.toImagePlus(user_client)
+        } catch(Exception e) {
+            println("Could not convert to image plus " + image_wpr + " waiting " + waiting_time + " minutes and trying again.")
+            println e
+            TimeUnit.MINUTES.sleep(waiting_time)
+            last_exception = e
+            if (!user_client.isConnected()) {
+                println("Has been deconnected. Will reconnect.")
+                user_client.connect(host, port, USERNAME, PASSWORD.toCharArray())
+            }
+        }
+    }
+    throw last_exception
+}
+
+def robustlyGetROIs(ImageWrapper image_wpr,Client user_client) {
+    for (waiting_time in waiting_times) {
+        try {
+            return image_wpr.getROIs(user_client)
+        } catch(Exception e) {
+            println("Could not get ROIs for " + image_wpr + " waiting " + waiting_time + " minutes and trying again.")
+            println e
+            TimeUnit.MINUTES.sleep(waiting_time)
+            last_exception = e
+            if (!user_client.isConnected()) {
+                println("Has been deconnected. Will reconnect.")
+                user_client.connect(host, port, USERNAME, PASSWORD.toCharArray())
+            }
+        }
+    }
+    throw last_exception
+}
+
+def robustlyGetTables(GenericRepositoryObjectWrapper obj_wpr,Client user_client) {
+    for (waiting_time in waiting_times) {
+        try {
+            return obj_wpr.getTables(user_client)
+        } catch(Exception e) {
+            println("Could not get tables for " + obj_wpr + " waiting " + waiting_time + " minutes and trying again.")
+            println e
+            TimeUnit.MINUTES.sleep(waiting_time)
+            last_exception = e
+            if (!user_client.isConnected()) {
+                println("Has been deconnected. Will reconnect.")
+                user_client.connect(host, port, USERNAME, PASSWORD.toCharArray())
+            }
+        }
+    }
+    throw last_exception
+}
+
+def robustlysaveROIs(ImageWrapper image_wpr, Client user_client, List<ROIWrapper> rois) {
+    for (waiting_time in waiting_times) {
+        try {
+            image_wpr.saveROIs(user_client, rois)
+            return
+        } catch(Exception e) {
+            println("Could not add ROIs to " + image_wpr + " waiting " + waiting_time + " minutes and trying again.")
+            println e
+            TimeUnit.MINUTES.sleep(waiting_time)
+            last_exception = e
+            if (!user_client.isConnected()) {
+                println("Has been deconnected. Will reconnect.")
+                user_client.connect(host, port, USERNAME, PASSWORD.toCharArray())
+            }
+        }
+    }
+    throw last_exception
+}
+
+def robustlyNewTableWrapper(Client user_client, ResultsTable results, Long imageId, List<? extends Roi> ijRois, String roiProperty) {
+    for (waiting_time in waiting_times) {
+        try {
+            return new TableWrapper(user_client, results, imageId, ijRois, roiProperty)
+        } catch(Exception e) {
+            println("Could not generate new table for image " + imageId + " waiting " + waiting_time + " minutes and trying again.")
+            println e
+            TimeUnit.MINUTES.sleep(waiting_time)
+            last_exception = e
+            if (!user_client.isConnected()) {
+                println("Has been deconnected. Will reconnect.")
+                user_client.connect(host, port, USERNAME, PASSWORD.toCharArray())
+            }
+        }
+    }
+    throw last_exception
+}
+
+def robustlyAddRows(TableWrapper table, Client user_client, ResultsTable results, Long imageId, List<? extends Roi> ijRois, String roiProperty) {
+    for (waiting_time in waiting_times) {
+        try {
+            table.addRows(user_client, results, imageId, ijRois, roiProperty)
+            return
+        } catch(Exception e) {
+            println("Could not generate new table for image " + imageId + " waiting " + waiting_time + " minutes and trying again.")
+            println e
+            TimeUnit.MINUTES.sleep(waiting_time)
+            last_exception = e
+            if (!user_client.isConnected()) {
+                println("Has been deconnected. Will reconnect.")
+                user_client.connect(host, port, USERNAME, PASSWORD.toCharArray())
+            }
+        }
+    }
+    throw last_exception
+}
+
+def robustlyAddAndReplaceTable(GenericRepositoryObjectWrapper obj_wpr, Client user_client, TableWrapper table) {
+    for (waiting_time in waiting_times) {
+        try {
+            obj_wpr.addAndReplaceTable(user_client, table)
+            return
+        } catch(Exception e) {
+            println("Could not add table to " + obj_wpr + " waiting " + waiting_time + " minutes and trying again.")
+            println e
+            TimeUnit.MINUTES.sleep(waiting_time)
+            last_exception = e
+            if (!user_client.isConnected()) {
+                println("Has been deconnected. Will reconnect.")
+                user_client.connect(host, port, USERNAME, PASSWORD.toCharArray())
+            }
+        }
+    }
+    throw last_exception
+}
+
+def robustlyDeleteROIs(ImageWrapper image_wpr, Client user_client, List<ROIWrapper> rois) {
+    for (waiting_time in waiting_times) {
+        try {
+            // Remove existing ROIs
+            // image_wpr.getROIs(user_client).each{ user_client.delete(it) }
+            // Caused failure due to too high number of 'servantsPerSession'
+            // Which reached 10k
+            // I use see https://github.com/GReD-Clermont/simple-omero-client/issues/59
+            user_client.delete((Collection<ROIWrapper>) rois)
+            return
+        } catch(Exception e) {
+            println("Could not remove ROIs for " + image_wpr + " waiting " + waiting_time + " minutes and trying again.")
+            println e
+            TimeUnit.MINUTES.sleep(waiting_time)
+            last_exception = e
+            if (!user_client.isConnected()) {
+                println("Has been deconnected. Will reconnect.")
+                user_client.connect(host, port, USERNAME, PASSWORD.toCharArray())
+            }
+        }
+    }
+    throw last_exception
+}
+
+def robustlyDeleteTableWrapper(Client user_client, TableWrapper table_wpr) {
+    for (waiting_time in waiting_times) {
+        try {
+            user_client.delete(table_wpr)
+            return
+        } catch(Exception e) {
+            println("Could not remove table " + table_wpr + " waiting " + waiting_time + " minutes and trying again.")
+            println e
+            TimeUnit.MINUTES.sleep(waiting_time)
+            last_exception = e
+            if (!user_client.isConnected()) {
+                println("Has been deconnected. Will reconnect.")
+                user_client.connect(host, port, USERNAME, PASSWORD.toCharArray())
+            }
+        }
+    }
+    throw last_exception
+}
 
 // This block was taken from https://www.geeksforgeeks.org/minimum-distance-from-a-point-to-the-line-segment-using-vectors/
 // written by 29AjayKumar
@@ -282,7 +498,7 @@ def processDataset(Client user_client, DatasetWrapper dataset_wpr,
                    File output_directory, Integer quantif_ch,
                    Integer n_pieces,
                    Boolean headless_mode, String tool_version) {
-    dataset_wpr.getImages(user_client).each{ ImageWrapper img_wpr ->
+    robustlyGetAll(dataset_wpr, "image", user_client).each{ ImageWrapper img_wpr ->
         processImage(user_client, img_wpr,
                      output_directory, quantif_ch,
                      n_pieces,
@@ -294,7 +510,7 @@ def processSinglePlate(Client user_client, PlateWrapper plate_wpr,
                        File output_directory, Integer quantif_ch,
                        Integer n_pieces,
                        Boolean headless_mode, String tool_version) {
-    plate_wpr.getWells(user_client).each{ well_wpr ->
+    robustlyGetAll(plate_wpr, "well", user_client).each{ well_wpr ->
         processSingleWell(user_client, well_wpr,
                           output_directory, quantif_ch,
                           n_pieces,
@@ -332,39 +548,34 @@ def processImage(Client user_client, ImageWrapper image_wpr,
     println "\n Image infos"
     String image_basename = image_wpr.getName()
     println ("Image_name : " + image_basename + " / id : " + image_wpr.getId())
-    List<DatasetWrapper> dataset_wpr_list = image_wpr.getDatasets(user_client)
+    List<DatasetWrapper> dataset_wpr_list = robustlyGetAll(image_wpr, "dataset", user_client)
 
     // if the image is part of a dataset
     if(!dataset_wpr_list.isEmpty()){
-        dataset_wpr_list.each{println("dataset_name : "+it.getName()+" / id : "+it.getId())};
-        image_wpr.getProjects(user_client).each{println("Project_name : "+it.getName()+" / id : "+it.getId())};
+        dataset_wpr_list.each{
+            println("dataset_name : "+it.getName()+" / id : "+it.getId())
+        }
+        robustlyGetAll(image_wpr, "project", user_client).each{
+            println("Project_name : "+it.getName()+" / id : "+it.getId())
+        }
     }
 
     // if the image is part of a plate
     else {
-        WellWrapper well_wpr = image_wpr.getWells(user_client).get(0)
-        println ("Well_name : "+well_wpr.getName() +" / id : "+ well_wpr.getId())
-
-        def plate_wpr = image_wpr.getPlates(user_client).get(0)
-        println ("plate_name : "+plate_wpr.getName() + " / id : "+ plate_wpr.getId())
-
-        def screen_wpr = image_wpr.getScreens(user_client).get(0)
-        println ("screen_name : "+screen_wpr.getName() + " / id : "+ screen_wpr.getId())
+        robustlyGetAll(image_wpr, "well", user_client).each{
+            println ("Well_name : "+it.getName() +" / id : "+ it.getId())
+        }
+        robustlyGetAll(image_wpr, "plate", user_client).each{
+            println ("plate_name : "+it.getName() + " / id : "+ it.getId())
+        }
+        robustlyGetAll(image_wpr, "screen", user_client).each{
+            println ("screen_name : "+it.getName() + " / id : "+ it.getId())
+        }
     }
-    ImagePlus imp = image_wpr.toImagePlus(user_client);
-
-    if (!headless_mode) {
-        imp.show()
-    }
-
-    // get imp info
-    dim_array = imp.getDimensions();
-    nC = dim_array[2]
-    nT = dim_array[4]
-
     // Get Gastruloids and Spines from omero:
     println "Get ROIs from OMERO"
-    List<Roi> omeroRois = ROIWrapper.toImageJ(image_wpr.getROIs(user_client), "ROI")
+    List<ROIWrapper> omeroRW = robustlyGetROIs(image_wpr, user_client)
+    List<Roi> omeroRois = ROIWrapper.toImageJ(omeroRW, "ROI")
     println "Found " + omeroRois.size()
 
     if (omeroRois.size() == 0) {
@@ -374,14 +585,15 @@ def processImage(Client user_client, ImageWrapper image_wpr,
     println "Get tables from OMERO"
     // get the list of image tables
     // remove the one with table_name
-    image_wpr.getTables(user_client).each{ TableWrapper t_wpr ->
+    robustlyGetTables(image_wpr, user_client).each{ TableWrapper t_wpr ->
         println "Found table: " + t_wpr.getName()
         if (t_wpr.getName() == table_name){
-            user_client.delete(t_wpr)
+            robustlyDeleteTableWrapper(user_client, t_wpr)
         }
     }
     // Define an omero table
     TableWrapper table_wpr
+    // Scan ROIs and
     // Put them in HashMap
     Map<String, Roi> gastruloid_rois = new HashMap<>();
     Map<String, Roi> spine_rois = new HashMap<>();
@@ -389,14 +601,14 @@ def processImage(Client user_client, ImageWrapper image_wpr,
     for (roi in omeroRois) {
         current_t = roi.getTPosition()
         roi_name = roi.getName()
-        println "Found ROI: " + roi_name
+        // println "Found ROI: " + roi_name
 
         if (roi_name.toLowerCase().startsWith("gastruloid") && !roi_name.toLowerCase().startsWith("gastruloidnotfound")) {
-        	println "This is a gastruloid of time " + current_t
+        	// println "This is a gastruloid of time " + current_t
             gastruloid_rois.put(current_t, roi)
         }
         if (roi_name.toLowerCase().startsWith("spine")) {
-        	println "This is a spine of time " + current_t
+        	// println "This is a spine of time " + current_t
             if (roi.getCPosition() != quantif_ch) {
                 spine_rois.put(current_t, roi)
             } else {
@@ -409,6 +621,41 @@ def processImage(Client user_client, ImageWrapper image_wpr,
     	println "No gastruloid found"
     	return
     }
+
+    // Get the image only if there are gastruloids
+
+    ImagePlus imp = robustlytoImagePlus(image_wpr, user_client)
+
+    if (!headless_mode) {
+        imp.show()
+    }
+
+    // get imp info
+    dim_array = imp.getDimensions();
+    nT = dim_array[4]
+
+
+    // Remove all existing ROIs for the image relative to fluo measurements:
+    rois_to_delete = []
+
+    for (int t = 1; t <= nT; t++ ){
+        // Remove existing ROIs
+        // println "Time " + t
+        omeroRW.each{
+            String roi_name = it.toImageJ().get(0).getName()
+            if ((roi_name == "WholeGastruloid_t" + t) ||
+                (roi_name == "Full_t" + t) ||
+                (roi_name == "NonGastruloid_t" + t) ||
+                (roi_name.startsWith("Segment_") &&
+                    roi_name.endsWith("_t" + t))) {
+                    // println "Add " + roi_name + " to ROIs to remove."
+                    rois_to_delete.add(it)
+            }
+        }
+    }
+    println "Remove ROIs from previous experiments on OMERO"
+    // Remove all of them at once to reduce the number of servantsPerSession:
+    robustlyDeleteROIs(image_wpr, user_client, rois_to_delete)
 
     /**
      * Measure on ROI along spine
@@ -547,6 +794,12 @@ def processImage(Client user_client, ImageWrapper image_wpr,
             imp.setOverlay(ov)
             // Measure on each item of the overlay
             def rt_profil_t = ov.measure(imp)
+            // Debug
+            // println "Columns are:" + rt_profil_t.getColumnHeadings()
+            if (rt_profil_t.getColumnIndex("Group") != ResultsTable.COLUMN_NOT_FOUND) {
+                println "Remove Group column"
+                rt_profil_t.deleteColumn("Group")
+            }
 
             // Add Date, version and params
             for ( int row = 0;row<rt_profil_t.size();row++) {
@@ -560,29 +813,20 @@ def processImage(Client user_client, ImageWrapper image_wpr,
                 rt_profil_t.setValue("ROI", row, label.split(":")[1])
                 rt_profil_t.setValue("ROI_type", row, label.split(":")[1].split("_t")[0])
             }
-            println "Remove ROIs from previous experiments on OMERO"
-            // Remove existing ROIs
-            println "Time " + t
-            image_wpr.getROIs(user_client).each{
-            	String roi_name = it.toImageJ().get(0).getName()
-                if ((roi_name == "WholeGastruloid_t" + t) ||
-                    (roi_name == "Full_t" + t) ||
-                    (roi_name == "NonGastruloid_t" + t) ||
-                    (roi_name.startsWith("Segment_") &&
-                     roi_name.endsWith("_t" + t))) {
-                     	println "Remove " + roi_name
-                        user_client.delete(it)
-                }
-            }
+
+            // Debug
+            // println "Now columns are:" + rt_profil_t.getColumnHeadings()
+
             println "Store " + ov.size() + " ROIs on OMERO"
+
             // Save ROIs to omero
-            image_wpr.saveROIs(user_client, ROIWrapper.fromImageJ(ov as List))
+            robustlysaveROIs(image_wpr, user_client, ROIWrapper.fromImageJ(ov as List))
 
             // Get them back with IDs:
             ArrayList<Roi> updatedRois = []
-            println "Now there is"
-            ROIWrapper.toImageJ(image_wpr.getROIs(user_client), "ROI").each{
-            	println it.getName()
+            // println "Now there is"
+            ROIWrapper.toImageJ(robustlyGetROIs(image_wpr, user_client), "ROI").each{
+            	// println it.getName()
                 if ((it.getName() == "WholeGastruloid_t" + t) ||
                     (it.getName() == "Full_t" + t) ||
                     (it.getName() == "NonGastruloid_t" + t) ||
@@ -594,37 +838,37 @@ def processImage(Client user_client, ImageWrapper image_wpr,
             println "Writting measurements to file"
             rt_profil_t.save(output_directory.toString() + '/' + image_basename+"__"+t+"_profil_Results.csv" )
             if (table_wpr == null) {
-                table_wpr = new TableWrapper(user_client, rt_profil_t, image_wpr.getId(), updatedRois, "ROI")
+                table_wpr = robustlyNewTableWrapper(user_client, rt_profil_t, image_wpr.getId(), updatedRois, "ROI")
                 // add the same infos to the super_table
                 if (super_table == null) {
                     println "super_table is null"
-                    super_table = new TableWrapper(user_client, rt_profil_t, image_wpr.getId(), updatedRois, "ROI")
+                    super_table = robustlyNewTableWrapper(user_client, rt_profil_t, image_wpr.getId(), updatedRois, "ROI")
                 } else {
                     println "adding rows"
-                    super_table.addRows(user_client, rt_profil_t, image_wpr.getId(), updatedRois, "ROI")
+                    robustlyAddRows(super_table, user_client, rt_profil_t, image_wpr.getId(), updatedRois, "ROI")
                 }
             } else {
                 println "adding rows"
-                table_wpr.addRows(user_client, rt_profil_t, image_wpr.getId(), updatedRois, "ROI")
-                super_table.addRows(user_client, rt_profil_t, image_wpr.getId(), updatedRois, "ROI")
+                robustlyAddRows(table_wpr, user_client, rt_profil_t, image_wpr.getId(), updatedRois, "ROI")
+                robustlyAddRows(super_table, user_client, rt_profil_t, image_wpr.getId(), updatedRois, "ROI")
             }
         }
     }
 
     // upload the table on OMERO
     table_wpr.setName(table_name)
-    image_wpr.addTable(user_client, table_wpr)
+    robustlyAddAndReplaceTable(image_wpr, user_client, table_wpr)
 
     // Send non-quantified ROIs to OMERO
     println "in non-quantified"
     to_omero_ov.each{
     	println it.getName()
     }
-    image_wpr.saveROIs(user_client, ROIWrapper.fromImageJ(to_omero_ov as List))
+    robustlysaveROIs(image_wpr, user_client, ROIWrapper.fromImageJ(to_omero_ov as List))
 
     // Put all ROIs in overlay:
     Overlay global_overlay = new Overlay()
-    ROIWrapper.toImageJ(image_wpr.getROIs(user_client), "ROI").each{
+    ROIWrapper.toImageJ(robustlyGetROIs(image_wpr, user_client), "ROI").each{
     	if (it.getTypeAsString() == "Text") {
     		it.setFont(new FontUtil().getFont("Arial", 1 , 72 as float ))
     	}
@@ -663,7 +907,7 @@ def addText( ov, roi, txt, pos, idx, x, y, channel){
 // In simple-omero-client
 // Strings that can be converted to double are stored in double
 // In order to build the super_table, tool_version should stay String
-String tool_version = "Fluo_v20230324"
+String tool_version = "Fluo_v20230724"
 
 // User set variables
 
@@ -739,81 +983,64 @@ if (user_client.isConnected()) {
                              headless_mode, tool_version)
                 break
             case "dataset":
-                DatasetWrapper dataset_wrp
+                DatasetWrapper dataset_wpr
                 try {
-                    dataset_wrp = user_client.getDataset(id)
+                    dataset_wpr = user_client.getDataset(id)
                 } catch(Exception e) {
                     throw Exception("Could not retrieve the dataset, please check the id.")
                 }
-                processDataset(user_client, dataset_wrp,
+                processDataset(user_client, dataset_wpr,
                                output_directory, quantif_ch,
                                n_pieces,
                                headless_mode, tool_version)
-                // get the list of dataset tables
-                // remove the one with table_name
-                dataset_wrp.getTables(user_client).each{ TableWrapper t_wpr ->
-                    if (t_wpr.getName() == table_name + "_global"){
-                        user_client.delete(t_wpr)
-                    }
-                }
                 // upload the table on OMERO
+                // and replace existing one
                 super_table.setName(table_name + "_global")
-                dataset_wrp.addTable(user_client, super_table)
+                robustlyAddAndReplaceTable(dataset_wpr, user_client, super_table)
                 break
             case "well":
-                WellWrapper well_wrp
+                WellWrapper well_wpr
                 try {
-                    well_wrp = user_client.getWells(id)[0]
+                    well_wpr = user_client.getWells(id)[0]
                 } catch(Exception e) {
                     throw Exception("Could not retrieve the well, please check the id.")
                 }
-                processSingleWell(user_client, well_wrp,
+                processSingleWell(user_client, well_wpr,
                                   output_directory, quantif_ch,
                                   n_pieces,
                                   headless_mode, tool_version)
-                // get the list of well tables
-                // remove the one with table_name
-                well_wrp.getTables(user_client).each{ TableWrapper t_wpr ->
-                    if (t_wpr.getName() == table_name + "_global"){
-                        user_client.delete(t_wpr)
-                    }
-                }
                 // upload the table on OMERO
+                // and replace existing one
                 super_table.setName(table_name + "_global")
-                well_wrp.addTable(user_client, super_table)
+                robustlyAddAndReplaceTable(well_wpr, user_client, super_table)
                 break
             case "plate":
-                PlateWrapper plate_wrp
+                PlateWrapper plate_wpr
                 try {
-                    plate_wrp = user_client.getPlates(id)[0]
+                    plate_wpr = user_client.getPlates(id)[0]
                 } catch(Exception e) {
                     throw Exception("Could not retrieve the plate, please check the id.")
                 }
-                processSinglePlate(user_client, plate_wrp,
+                processSinglePlate(user_client, plate_wpr,
                                    output_directory, quantif_ch,
                                    n_pieces,
                                    headless_mode, tool_version)
-                // get the list of well tables
-                // remove the one with table_name
-                plate_wrp.getTables(user_client).each{ TableWrapper t_wpr ->
-                    if (t_wpr.getName() == table_name + "_global"){
-                        user_client.delete(t_wpr)
-                    }
-                }
                 // upload the table on OMERO
+                // and replace existing one
                 super_table.setName(table_name + "_global")
-                plate_wrp.addTable(user_client, super_table)
+                robustlyAddAndReplaceTable(plate_wpr, user_client, super_table)
                 break
         }
-
     } catch(Exception e) {
         println("Something went wrong: " + e)
+        e.printStackTrace()
+        throw new Exception(e)
     } finally {
         user_client.disconnect()
         println "Disonnected " + host
     }
 } else {
-    println "Not able to connect to " + host
+    throw new Exception("Not able to connect to " + host)
 }
 
 return
