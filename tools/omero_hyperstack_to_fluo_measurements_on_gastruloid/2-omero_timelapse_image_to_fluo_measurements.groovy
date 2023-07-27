@@ -5,7 +5,7 @@
 // Interactions with omero are largely inspired by
 // templates available at https://github.com/BIOP/OMERO-scripts/tree/main/Fiji
 
-// Last modification: 2023-07-24
+// Last modification: 2023-07-27
 
 // This macro works both in headless
 // or GUI
@@ -195,7 +195,10 @@ def robustlyAddRows(TableWrapper table, Client user_client, ResultsTable results
             table.addRows(user_client, results, imageId, ijRois, roiProperty)
             return
         } catch(Exception e) {
-            println("Could not generate new table for image " + imageId + " waiting " + waiting_time + " minutes and trying again.")
+            if (e.getClass().equals(java.lang.IllegalArgumentException)) {
+                throw e
+            }
+            println("Could not add rows for image " + imageId + " waiting " + waiting_time + " minutes and trying again.")
             println e
             TimeUnit.MINUTES.sleep(waiting_time)
             last_exception = e
@@ -348,6 +351,58 @@ def minDistance(pair A, pair B, pair E)
     return reqAns;
 }
 // end of block
+
+// Function to return the coordinates of the
+// point F projection of E on AB
+// Inspired from above and
+// https://stackoverflow.com/questions/61341712/calculate-projected-point-location-x-y-on-given-line-startx-y-endx-y
+def projection(pair A, pair B, pair E)
+{
+ 
+    // vector AB
+    pair AB = new pair()
+    AB.F = B.F - A.F
+    AB.S = B.S - A.S
+ 
+    // vector AE
+    pair AE = new pair()
+    AE.F = E.F - A.F
+    AE.S = E.S - A.S
+ 
+    // Variables to store dot product
+    // And relative length
+    double AE_AB, rel_length
+ 
+    // Calculating the dot product
+    AE_AB = (AE.F * AB.F + AE.S * AB.S)
+ 
+    // Relative length:
+    rel_length = AE_AB / (Math.pow(AB.F, 2) + Math.pow(AB.S, 2))
+
+    // result:
+    pair F = new pair()
+ 
+    // Case 1
+    if (rel_length > 1)
+    {
+        F = new pair(B.F, B.S)
+    }
+ 
+    // Case 2
+    else if (rel_length < 0)
+    {
+        F = new pair(A.F, A.S)
+    }
+ 
+    // Case 3
+    else
+    {
+        F = new pair(A.F + rel_length * AB.F,
+                     A.S + rel_length * AB.S)
+    }
+    return F
+}
+
 
 /**
  * helper function to get coordonates that split a polyline into n pieces so return 2 arrays of size n+1
@@ -623,6 +678,7 @@ def processImage(Client user_client, ImageWrapper image_wpr,
     }
 
     // Get the image only if there are gastruloids
+    println "Getting image from OMERO"
 
     ImagePlus imp = robustlytoImagePlus(image_wpr, user_client)
 
@@ -653,7 +709,7 @@ def processImage(Client user_client, ImageWrapper image_wpr,
             }
         }
     }
-    println "Remove ROIs from previous experiments on OMERO"
+    println "Remove " + rois_to_delete.size() + " ROIs from previous experiments on OMERO"
     // Remove all of them at once to reduce the number of servantsPerSession:
     robustlyDeleteROIs(image_wpr, user_client, rois_to_delete)
 
@@ -714,52 +770,102 @@ def processImage(Client user_client, ImageWrapper image_wpr,
                 closest_seg_start_A = find_index(gastruloid_x, gastruloid_y, A)
                 closest_seg_start_P = find_index(gastruloid_x, gastruloid_y, P)
 
-                // Create 2 polylines going from A to P using both sides of polygon
+                // Project A and P on the ROI:
+                pair projA = new pair()
+                pair projP = new pair()
+                if (closest_seg_start_A != (gastruloid_x.size() - 1)) {
+                    projA =  projection(new pair(gastruloid_x[closest_seg_start_A],
+                                                 gastruloid_y[closest_seg_start_A]),
+                                        new pair(gastruloid_x[closest_seg_start_A + 1],
+                                                 gastruloid_y[closest_seg_start_A + 1]),
+                                        A)
+                } else {
+                    projA =  projection(new pair(gastruloid_x[closest_seg_start_A],
+                                                 gastruloid_y[closest_seg_start_A]),
+                                        new pair(gastruloid_x[0],
+                                                 gastruloid_y[0]),
+                                        A)
+                }
+                if (closest_seg_start_P != (gastruloid_x.size() - 1)) {
+                    projP =  projection(new pair(gastruloid_x[closest_seg_start_P],
+                                                 gastruloid_y[closest_seg_start_P]),
+                                        new pair(gastruloid_x[closest_seg_start_P + 1],
+                                                 gastruloid_y[closest_seg_start_P + 1]),
+                                        P)
+                } else {
+                    projP =  projection(new pair(gastruloid_x[closest_seg_start_P],
+                                                 gastruloid_y[closest_seg_start_P]),
+                                        new pair(gastruloid_x[0],
+                                                 gastruloid_y[0]),
+                                        P)
+                }
+                // println "Projecting A:"
+                // println A.F + "," + A.S
+                // println projA.F + "," + projA.S
+                // println "and P:"
+                // println P.F + "," + P.S
+                // println projP.F + "," + projP.S
+
+                // Create a new ROI with projA and projP
+                spine_xs_proj = [projA.F as float]
+                spine_xs_proj += Arrays.copyOfRange(spine_xs as float[], 1, spine_xs.size() - 1) as List
+                spine_xs_proj.add(projP.F as float)
+                // println spine_xs
+                // println spine_xs_proj
+                spine_ys_proj = [projA.S as float]
+                spine_ys_proj += Arrays.copyOfRange(spine_ys as float[], 1, spine_ys.size() - 1) as List
+                spine_ys_proj.add(projP.S as float)
+                // println spine_ys
+                // println spine_ys_proj
+                spine_roi_proj = new PolygonRoi(spine_xs_proj as float[], spine_ys_proj as float[], spine_xs_proj.size(), Roi.POLYLINE)
+                // println spine_roi_proj
+
+                // Create 2 polylines going from projA to projP using both sides of polygon
                 println "Split gastruloid ROI into 2 lines"
                 // First going increasing:
-                poly1_x = [A.F]
-                poly1_y = [A.S]
+                poly1_x = [projA.F]
+                poly1_y = [projA.S]
                 if (closest_seg_start_A + 1 < closest_seg_start_P) {
                     // Just goes from one to the other
-                    poly1_x += Arrays.copyOfRange(gastruloid_x as int[], closest_seg_start_A + 1, closest_seg_start_P + 1) as List
-                    poly1_y += Arrays.copyOfRange(gastruloid_y as int[], closest_seg_start_A + 1, closest_seg_start_P + 1) as List
+                    poly1_x += Arrays.copyOfRange(gastruloid_x as float[], closest_seg_start_A + 1, closest_seg_start_P + 1) as List
+                    poly1_y += Arrays.copyOfRange(gastruloid_y as float[], closest_seg_start_A + 1, closest_seg_start_P + 1) as List
                 } else {
                     // Goes from one to the end and from the start to the second one
-                    poly1_x += Arrays.copyOfRange(gastruloid_x as int[], closest_seg_start_A + 1, gastruloid_x.size()) as List
-                    poly1_x += Arrays.copyOfRange(gastruloid_x as int[], 0, closest_seg_start_P + 1) as List
-                    poly1_y += Arrays.copyOfRange(gastruloid_y as int[], closest_seg_start_A + 1, gastruloid_x.size()) as List
-                    poly1_y += Arrays.copyOfRange(gastruloid_y as int[], 0, closest_seg_start_P + 1) as List
+                    poly1_x += Arrays.copyOfRange(gastruloid_x as float[], closest_seg_start_A + 1, gastruloid_x.size()) as List
+                    poly1_x += Arrays.copyOfRange(gastruloid_x as float[], 0, closest_seg_start_P + 1) as List
+                    poly1_y += Arrays.copyOfRange(gastruloid_y as float[], closest_seg_start_A + 1, gastruloid_x.size()) as List
+                    poly1_y += Arrays.copyOfRange(gastruloid_y as float[], 0, closest_seg_start_P + 1) as List
                 }
-                poly1_x.add(P.F)
-                poly1_y.add(P.S)
-                poly1 = new PolygonRoi(poly1_x as int[], poly1_y as int[], poly1_x.size(), Roi.POLYLINE)
+                poly1_x.add(projP.F)
+                poly1_y.add(projP.S)
+                poly1 = new PolygonRoi(poly1_x as float[], poly1_y as float[], poly1_x.size(), Roi.POLYLINE)
                 // Second going decreasing:
                 // Because it is easier we build it P to A
                 // And then revert it:
                 // Building
-                poly2_x = [P.F]
-                poly2_y = [P.S]
+                poly2_x = [projP.F]
+                poly2_y = [projP.S]
                 if (closest_seg_start_P + 1 <= closest_seg_start_A) {
                     // Just goes from one to the other
-                    poly2_x += Arrays.copyOfRange(gastruloid_x as int[], closest_seg_start_P + 1, closest_seg_start_A + 1) as List
-                    poly2_y += Arrays.copyOfRange(gastruloid_y as int[], closest_seg_start_P + 1, closest_seg_start_A + 1) as List
+                    poly2_x += Arrays.copyOfRange(gastruloid_x as float[], closest_seg_start_P + 1, closest_seg_start_A + 1) as List
+                    poly2_y += Arrays.copyOfRange(gastruloid_y as float[], closest_seg_start_P + 1, closest_seg_start_A + 1) as List
                 } else {
                     // Goes from one to the end and from the start to the second one
-                    poly2_x += Arrays.copyOfRange(gastruloid_x as int[], closest_seg_start_P + 1, gastruloid_x.size()) as List
-                    poly2_x += Arrays.copyOfRange(gastruloid_x as int[], 0, closest_seg_start_A + 1) as List
-                    poly2_y += Arrays.copyOfRange(gastruloid_y as int[], closest_seg_start_P + 1, gastruloid_x.size()) as List
-                    poly2_y += Arrays.copyOfRange(gastruloid_y as int[], 0, closest_seg_start_A + 1) as List
+                    poly2_x += Arrays.copyOfRange(gastruloid_x as float[], closest_seg_start_P + 1, gastruloid_x.size()) as List
+                    poly2_x += Arrays.copyOfRange(gastruloid_x as float[], 0, closest_seg_start_A + 1) as List
+                    poly2_y += Arrays.copyOfRange(gastruloid_y as float[], closest_seg_start_P + 1, gastruloid_x.size()) as List
+                    poly2_y += Arrays.copyOfRange(gastruloid_y as float[], 0, closest_seg_start_A + 1) as List
                 }
-                poly2_x.add(A.F)
-                poly2_y.add(A.S)
+                poly2_x.add(projA.F)
+                poly2_y.add(projA.S)
                 // Reverting
                 poly2_x = poly2_x.reverse()
                 poly2_y = poly2_y.reverse()
-                poly2 = new PolygonRoi(poly2_x as int[], poly2_y as int[], poly2_x.size(), Roi.POLYLINE)
+                poly2 = new PolygonRoi(poly2_x as float[], poly2_y as float[], poly2_x.size(), Roi.POLYLINE)
 
                 // Now I cut into n_pieces pieces the 3 polylines:
                 // println "CUT"
-                cut_spine = getCooPoly(spine_roi, n_pieces)
+                cut_spine = getCooPoly(spine_roi_proj, n_pieces)
                 cut_poly1 = getCooPoly(poly1, n_pieces)
                 cut_poly2 = getCooPoly(poly2, n_pieces)
 
@@ -768,7 +874,7 @@ def processImage(Client user_client, ImageWrapper image_wpr,
                     // println "Reform " + i
                     roi_x = [cut_spine[0][i][0]] + cut_poly1[0][i]+ [cut_spine[0][i][-1]] + cut_poly2[0][i].reverse()
                     roi_y = [cut_spine[1][i][0]] + cut_poly1[1][i] + [cut_spine[1][i][-1]] + cut_poly2[1][i].reverse()
-                    new_roi = new PolygonRoi(roi_x as int[], roi_y as int[], roi_x.size(), Roi.POLYGON)
+                    new_roi = new PolygonRoi(roi_x as float[], roi_y as float[], roi_x.size(), Roi.POLYGON)
                     // We restrict the piece to the part which
                     // overlaps the gastruloid
                     new_roi2 = new ShapeRoi(new_roi as Roi).and(new ShapeRoi(gastruloid_roi as Roi))
@@ -782,11 +888,11 @@ def processImage(Client user_client, ImageWrapper image_wpr,
                 // println "DONE"
                 // finally add Rois to Overlay if not already present:
                 if (spine_rois_on_fluo.get(t) == null) {
-                    to_omero_ov = addText(to_omero_ov, spine_roi, "A", t, 0, A.F, A.S, quantif_ch)
-                    to_omero_ov = addText(to_omero_ov, spine_roi, "P", t, -1, P.F, P.S, quantif_ch)
-                    spine_roi.setName(spine_roi.getName() + "_on_fluo")
-                    spine_roi.setPosition( quantif_ch, 1, t)
-                    to_omero_ov.add(spine_roi)
+                    to_omero_ov = addText(to_omero_ov, spine_roi_proj, "A", t, 0, A.F, A.S, quantif_ch)
+                    to_omero_ov = addText(to_omero_ov, spine_roi_proj, "P", t, -1, P.F, P.S, quantif_ch)
+                    spine_roi_proj.setName(spine_roi.getName() + "_on_fluo")
+                    spine_roi_proj.setPosition( quantif_ch, 1, t)
+                    to_omero_ov.add(spine_roi_proj)
                 }
             }
             imp.setPosition(quantif_ch, 1, t)
@@ -844,12 +950,13 @@ def processImage(Client user_client, ImageWrapper image_wpr,
                     println "super_table is null"
                     super_table = robustlyNewTableWrapper(user_client, rt_profil_t, image_wpr.getId(), updatedRois, "ROI")
                 } else {
-                    println "adding rows"
+                    println "adding rows to super_table"
                     robustlyAddRows(super_table, user_client, rt_profil_t, image_wpr.getId(), updatedRois, "ROI")
                 }
             } else {
-                println "adding rows"
+                println "adding rows to table_wpr"
                 robustlyAddRows(table_wpr, user_client, rt_profil_t, image_wpr.getId(), updatedRois, "ROI")
+                println "adding rows to super_table"
                 robustlyAddRows(super_table, user_client, rt_profil_t, image_wpr.getId(), updatedRois, "ROI")
             }
         }
@@ -907,7 +1014,7 @@ def addText( ov, roi, txt, pos, idx, x, y, channel){
 // In simple-omero-client
 // Strings that can be converted to double are stored in double
 // In order to build the super_table, tool_version should stay String
-String tool_version = "Fluo_v20230724"
+String tool_version = "Fluo_v20230727"
 
 // User set variables
 
@@ -963,7 +1070,7 @@ user_client.connect(host, port, USERNAME, PASSWORD.toCharArray())
 // This super_table is a global variable and will be filled each time an image is processed.
 super_table = null
 // table_name is also a global variable
-table_name = "Measurements_from_Galaxy_fluo"
+table_name = "Measurements_from_Galaxy_fluo_ch" + quantif_ch
 if (user_client.isConnected()) {
     println "\nConnected to "+host
     println "Results will be in " + output_directory.toString()

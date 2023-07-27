@@ -1,7 +1,7 @@
 <tool id="omero_hyperstack_to_fluo_measurements_on_gastruloid" name="Omero hyperstack to Fluo measurements" profile="20.01" version="@TOOL_VERSION@+galaxy0">
     <description>on gastruloid</description>
     <macros>
-        <token name="@TOOL_VERSION@">20230724</token>
+        <token name="@TOOL_VERSION@">20230727</token>
     </macros>
     <requirements>
         <requirement type="package" version="20220414">fiji</requirement>
