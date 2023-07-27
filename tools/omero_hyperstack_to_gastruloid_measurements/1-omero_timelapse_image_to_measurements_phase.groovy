@@ -5,7 +5,7 @@
 // merge the analysis script with templates available at
 // https://github.com/BIOP/OMERO-scripts/tree/main/Fiji
 
-// Last modification: 2023-06-28
+// Last modification: 2023-07-27
 
 /*
  * = COPYRIGHT =
@@ -31,6 +31,7 @@
 
 // This macro will use ilastik to detect ROIs
 // measure and compute elongation index
+// It may also regenerate a ROI of background
 
 // The input image(s) may have multiple time stacks
 // It may have multiple channels
@@ -52,7 +53,7 @@
 
 // In both modes,
 // The result table and the result ROI are sent to omero
-// The measures are: Area,Perim.,Circ.,Feret,FeretX,FeretY,FeretAngle,MinFeret,AR,Round,Solidity,Unit,Date,Version,IlastikProject,ProbabilityThreshold,MinSizeParticle,MinDiameter,ClosenessTolerance,MinSimilarity,RadiusMedian,BaseImage,ROI,Time,ROI_type,LargestRadius,SpineLength,ElongationIndex[,Date_rerun_spine,Version_rerun_spine]
+// The measures are: Area,Perim.,Circ.,Feret,FeretX,FeretY,FeretAngle,MinFeret,AR,Round,Solidity,Unit,Date,Version,IlastikProject,ProbabilityThreshold,MinSizeParticle,MinDiameter,ClosenessTolerance,MinSimilarity,RadiusMedian,BaseImage,ROI,Time,ROI_type,XCentroid,YCentroid,LargestRadius,SpineLength,ElongationIndex[,Date_rerun_spine,Version_rerun_spine]
 
 // LargestRadius and SpineLength are set to 0 if no circle was found.
 // ElongationIndex is set to 0 if a gastruloid was found and to -1 if no gastruloid was found.
@@ -75,6 +76,7 @@ import ij.ImagePlus
 import ij.gui.Overlay
 import ij.gui.PolygonRoi
 import ij.gui.Roi
+import ij.gui.ShapeRoi
 import ij.IJ
 import ij.io.FileSaver
 import ij.measure.ResultsTable
@@ -229,7 +231,7 @@ def robustlyHasAnyTable(GenericRepositoryObjectWrapper obj_wrp, String object_ty
         for (image_wrp in robustlyGetAll(obj_wrp, "image", user_client)) {
             if (robustlyGetTables(image_wrp, user_client).size() > 0) {
                 return true
-            }   
+            }
         }
     }
     return false
@@ -239,7 +241,7 @@ def robustlyHasAnyROI(GenericRepositoryObjectWrapper obj_wrp, Client user_client
     for (image_wrp in robustlyGetAll(obj_wrp, "image", user_client)) {
         if (robustlyGetROIs(image_wrp, user_client).size() > 0) {
             return true
-        }   
+        }
     }
     return false
 }
@@ -370,7 +372,10 @@ def robustlyAddRows(TableWrapper table, Client user_client, ResultsTable results
             table.addRows(user_client, results, imageId, ijRois, roiProperty)
             return
         } catch(Exception e) {
-            println("Could not generate new table for image " + imageId + " waiting " + waiting_time + " minutes and trying again.")
+            if (e.getClass().equals(java.lang.IllegalArgumentException)) {
+                throw e
+            }
+            println("Could not add rows for image " + imageId + " waiting " + waiting_time + " minutes and trying again.")
             println e
             TimeUnit.MINUTES.sleep(waiting_time)
             last_exception = e
@@ -392,7 +397,8 @@ def processDataset(Client user_client, DatasetWrapper dataset_wrp,
                    String ilastik_project_short_name,
                    File output_directory,
                    Boolean headless_mode, Boolean debug, String tool_version,
-                   Boolean use_existing, String final_object, Boolean rescue) {
+                   Boolean use_existing, String final_object, Boolean rescue,
+                   Integer ilastik_label_BG, Double probability_threshold_BG) {
     robustlyGetAll(dataset_wrp, "image", user_client).each{ ImageWrapper img_wrp ->
         processImage(user_client, img_wrp,
                      ilastik_project, ilastik_project_type,
@@ -402,7 +408,8 @@ def processDataset(Client user_client, DatasetWrapper dataset_wrp,
                      ilastik_project_short_name,
                      output_directory,
                      headless_mode, debug, tool_version,
-                     use_existing, final_object, rescue)
+                     use_existing, final_object, rescue,
+                     ilastik_label_BG, probability_threshold_BG)
     }
 }
 
@@ -415,7 +422,8 @@ def processSinglePlate(Client user_client, PlateWrapper plate_wrp,
                        String ilastik_project_short_name,
                        File output_directory,
                        Boolean headless_mode, Boolean debug, String tool_version, Boolean use_existing,
-                       String final_object, Boolean rescue) {
+                       String final_object, Boolean rescue,
+                       Integer ilastik_label_BG, Double probability_threshold_BG) {
     robustlyGetAll(plate_wrp, "well", user_client).each{ well_wrp ->
         processSingleWell(user_client, well_wrp,
                      ilastik_project, ilastik_project_type,
@@ -425,7 +433,8 @@ def processSinglePlate(Client user_client, PlateWrapper plate_wrp,
                      ilastik_project_short_name,
                      output_directory,
                      headless_mode, debug, tool_version,
-                     use_existing, final_object, rescue)
+                     use_existing, final_object, rescue,
+                     ilastik_label_BG, probability_threshold_BG)
     }
 }
 
@@ -438,7 +447,8 @@ def processSingleWell(Client user_client, WellWrapper well_wrp,
                       String ilastik_project_short_name,
                       File output_directory,
                       Boolean headless_mode, Boolean debug, String tool_version, Boolean use_existing,
-                      String final_object, Boolean rescue) {
+                      String final_object, Boolean rescue,
+                      Integer ilastik_label_BG, Double probability_threshold_BG) {
     well_wrp.getWellSamples().each{
         processImage(user_client, it.getImage(),
                      ilastik_project, ilastik_project_type,
@@ -448,7 +458,8 @@ def processSingleWell(Client user_client, WellWrapper well_wrp,
                      ilastik_project_short_name,
                      output_directory,
                      headless_mode, debug, tool_version,
-                     use_existing, final_object, rescue)
+                     use_existing, final_object, rescue,
+                     ilastik_label_BG, probability_threshold_BG)
     }
 }
 
@@ -461,7 +472,8 @@ def processImage(Client user_client, ImageWrapper image_wrp,
                  String ilastik_project_short_name,
                  File output_directory,
                  Boolean headless_mode, Boolean debug, String tool_version,
-                 Boolean use_existing, String final_object, Boolean rescue) {
+                 Boolean use_existing, String final_object, Boolean rescue,
+                 Integer ilastik_label_BG, Double probability_threshold_BG) {
 
     IJ.run("Close All", "")
     IJ.run("Clear Results")
@@ -500,6 +512,8 @@ def processImage(Client user_client, ImageWrapper image_wrp,
             println ("screen_name : "+it.getName() + " / id : "+ it.getId())
         }
     }
+
+    println "Getting image from OMERO"
 
     ImagePlus imp = robustlytoImagePlus(image_wrp, user_client)
 
@@ -595,14 +609,14 @@ def processImage(Client user_client, ImageWrapper image_wrp,
             def predictions_imgPlus
             if (ilastik_project_type == "Regular") {
                 predictions_imgPlus = cmds.run( IlastikPixelClassificationCommand.class, false,
-                                            'inputImage', ilastik_input,
-                                            'projectFileName', ilastik_project,
-                                            'pixelClassificationType', "Probabilities").get().getOutput("predictions")
+                                                'inputImage', ilastik_input,
+                                                'projectFileName', ilastik_project,
+                                                'pixelClassificationType', "Probabilities").get().getOutput("predictions")
             } else {
                 predictions_imgPlus = cmds.run( IlastikAutoContextCommand.class, false,
-                                            'inputImage', ilastik_input,
-                                            'projectFileName', ilastik_project,
-                                            'AutocontextPredictionType', "Probabilities").get().getOutput("predictions")
+                                                'inputImage', ilastik_input,
+                                                'projectFileName', ilastik_project,
+                                                'AutocontextPredictionType', "Probabilities").get().getOutput("predictions")
             }
             // to convert the result to ImagePlus : https://gist.github.com/GenevieveBuckley/460d0abc7c1b13eee983187b955330ba
             predictions_imp = ImageJFunctions.wrap(predictions_imgPlus, "predictions")
@@ -618,6 +632,39 @@ def processImage(Client user_client, ImageWrapper image_wrp,
         /**
         * From the "ilastik predictions of the Time-lapse" do segmentation and cleaning
         */
+
+        // Get a stack of ROI for background:
+        if (ilastik_label_BG != 0) {
+            ImagePlus mask_imp_BG = new Duplicator().run(predictions_imp, ilastik_label_BG, ilastik_label_BG, 1, 1, 1, nT)
+            // Apply threshold:
+            IJ.setThreshold(mask_imp_BG, probability_threshold_BG, 100.0000)
+            Prefs.blackBackground = true
+            IJ.run(mask_imp_BG, "Convert to Mask", "method=Default background=Dark black")
+            if (!headless_mode) {  mask_imp_BG.show() }
+            IJ.run(mask_imp_BG, "Analyze Particles...", "stack show=Overlay")
+            Overlay ov_BG = mask_imp_BG.getOverlay()
+            Overlay ov_BG_Combined = new Overlay()
+            for (int t=1;t<=nT;t++) {
+                // Don't ask me why we need to refer to Z pos and not T/Frame
+                ArrayList<Roi> all_rois_inT = ov_BG.findAll{ roi -> roi.getZPosition() == t}
+                println "There are " + all_rois_inT.size() + " in time " + t
+                if (all_rois_inT.size() > 0) {
+                    ShapeRoi current_roi = new ShapeRoi(all_rois_inT[0] as Roi)
+                    for (i = 1; i < all_rois_inT.size(); i++) {
+                        current_roi = current_roi.or(new ShapeRoi(all_rois_inT[i] as Roi))
+                    }
+                    // Update the position before adding to the ov_BG_Combined
+                    current_roi.setPosition( ilastik_input_ch, 1, t)
+                    current_roi.setName("Background_t" + t)
+                    ov_BG_Combined.add(current_roi)
+                }
+            }
+            IJ.run("Clear Results")
+            println "Store " + ov_BG_Combined.size() + " BG ROIs on OMERO"
+            // Save ROIs to omero
+            robustlysaveROIs(image_wrp, user_client, ROIWrapper.fromImageJ(ov_BG_Combined as List))
+        }
+
         // Get only the channel for the gastruloid/background prediction
         ImagePlus mask_imp = new Duplicator().run(predictions_imp, ilastik_label_OI, ilastik_label_OI, 1, 1, 1, nT);
         // This title will appear in the result table
@@ -713,6 +760,10 @@ def processImage(Client user_client, ImageWrapper image_wrp,
             // them as Double:
             rt.setValue("Time", row, label.split(":")[1].split("_t")[-1] as Double)
             rt.setValue("ROI_type", row, label.split(":")[1].split("_t")[0])
+            Roi current_roi = clean_overlay[row]
+            Double[] centroid = current_roi.getContourCentroid()
+            rt.setValue("XCentroid", row, centroid[0])
+            rt.setValue("YCentroid", row, centroid[1])
         }
         println "Store " + clean_overlay.size() + " ROIs on OMERO"
         // Save ROIs to omero
@@ -764,7 +815,10 @@ def processImage(Client user_client, ImageWrapper image_wrp,
             robustlyGetROIs(image_wrp, user_client).each{
                 if (Arrays.binarySearch(gastruloid_roi_ids, it.getId()) < 0) {
                     // user_client.delete(it)
-                    ROIW_list_to_delete.add(it)
+                    String roi_name = it.toImageJ().get(0).getName()
+                    if (!roi_name.startsWith("Background_t")) {
+                        ROIW_list_to_delete.add(it)
+                    }
                 }
             }
             // Then I should use
@@ -954,7 +1008,7 @@ def processImage(Client user_client, ImageWrapper image_wrp,
 // In simple-omero-client
 // Strings that can be converted to double are stored in double
 // In order to build the super_table, tool_version should stay String
-String tool_version = "Phase_v20230628"
+String tool_version = "Phase_v20230727"
 
 // User set variables
 
@@ -978,13 +1032,17 @@ String tool_version = "Phase_v20230628"
 #@ Double(label="Radius for median (=smooth the mask)", min=1, value=20) radius_median
 #@ Integer(label="Minimum surface for Analyze Particle", value=5000) min_size_particle
 
-#@ String(visibility=MESSAGE, value="Parameters for elongation index", required=false) msg3
+#@ String(visibility=MESSAGE, value="Parameters for segmentation/ROI of background", required=false) msg3
+#@ Integer(label="Ilastik label of background (put 0 if not present)", min=0, value=1) ilastik_label_BG
+#@ Double(label="Probability threshold for background in ilastik", min=0, max=1, value=0.8) probability_threshold_BG
+
+#@ String(visibility=MESSAGE, value="Parameters for elongation index", required=false) msg4
 #@ Boolean(label="Compute spine", value=true) get_spine
 #@ Integer(label="Minimum diameter of inscribed circles", min=0, value=20) minimum_diameter
 #@ Integer(label="Closeness Tolerance (Spine)", min=0, value=50) closeness_tolerance
 #@ Double(label="Min similarity (Spine)", min=-1, max=1, value=0.1) min_similarity
 
-#@ String(visibility=MESSAGE, value="Parameters for output", required=false) msg4
+#@ String(visibility=MESSAGE, value="Parameters for output", required=false) msg5
 #@ File(style = "directory", label="Directory where measures are put") output_directory
 #@ Boolean(label="<html>Run in debug mode<br/>(get all inscribed circles)</html>", value=false) debug
 
@@ -1073,7 +1131,8 @@ if (user_client.isConnected()) {
                     ilastik_project_short_name,
                     output_directory,
                     headless_mode, debug, tool_version,
-                    use_existing, "image", rescue)
+                    use_existing, "image", rescue,
+                    ilastik_label_BG, probability_threshold_BG)
                 break
             case "dataset":
                 DatasetWrapper dataset_wrp = robustlyGetOne(id, "dataset", user_client)
@@ -1098,7 +1157,8 @@ if (user_client.isConnected()) {
                      ilastik_project_short_name,
                      output_directory,
                      headless_mode, debug, tool_version,
-                     use_existing, "dataset", rescue)
+                     use_existing, "dataset", rescue,
+                     ilastik_label_BG, probability_threshold_BG)
                 // upload the table on OMERO
                 super_table.setName(table_name + "_global")
                 robustlyAddAndReplaceTable(dataset_wrp, user_client, super_table)
@@ -1126,7 +1186,8 @@ if (user_client.isConnected()) {
                      ilastik_project_short_name,
                      output_directory,
                      headless_mode, debug, tool_version,
-                     use_existing, "well", rescue)
+                     use_existing, "well", rescue,
+                     ilastik_label_BG, probability_threshold_BG)
                 // upload the table on OMERO
                 super_table.setName(table_name + "_global")
                 robustlyAddAndReplaceTable(well_wrp, user_client, super_table)
@@ -1154,7 +1215,8 @@ if (user_client.isConnected()) {
                      ilastik_project_short_name,
                      output_directory,
                      headless_mode, debug, tool_version,
-                     use_existing, "plate", rescue)
+                     use_existing, "plate", rescue,
+                     ilastik_label_BG, probability_threshold_BG)
                 // upload the table on OMERO
                 super_table.setName(table_name + "_global")
                 robustlyAddAndReplaceTable(plate_wrp, user_client, super_table)
