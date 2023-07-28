@@ -5,7 +5,7 @@
 // merge the analysis script with templates available at
 // https://github.com/BIOP/OMERO-scripts/tree/main/Fiji
 
-// Last modification: 2023-07-27
+// Last modification: 2023-07-28
 
 /*
  * = COPYRIGHT =
@@ -37,6 +37,9 @@
 // It may have multiple channels
 // If multiple channels are present, the LUT will be
 // used to determine which channel should be used.
+
+// The option keep_only_largest (by default to true)
+// Allows to keep only the largest ROI for each stack
 
 // The option 'rescue' allows to only process images without ROIs and
 // tables and generate the final table
@@ -398,7 +401,8 @@ def processDataset(Client user_client, DatasetWrapper dataset_wrp,
                    File output_directory,
                    Boolean headless_mode, Boolean debug, String tool_version,
                    Boolean use_existing, String final_object, Boolean rescue,
-                   Integer ilastik_label_BG, Double probability_threshold_BG) {
+                   Integer ilastik_label_BG, Double probability_threshold_BG,
+                   Boolean keep_only_largest) {
     robustlyGetAll(dataset_wrp, "image", user_client).each{ ImageWrapper img_wrp ->
         processImage(user_client, img_wrp,
                      ilastik_project, ilastik_project_type,
@@ -409,7 +413,8 @@ def processDataset(Client user_client, DatasetWrapper dataset_wrp,
                      output_directory,
                      headless_mode, debug, tool_version,
                      use_existing, final_object, rescue,
-                     ilastik_label_BG, probability_threshold_BG)
+                     ilastik_label_BG, probability_threshold_BG,
+                     keep_only_largest)
     }
 }
 
@@ -423,7 +428,8 @@ def processSinglePlate(Client user_client, PlateWrapper plate_wrp,
                        File output_directory,
                        Boolean headless_mode, Boolean debug, String tool_version, Boolean use_existing,
                        String final_object, Boolean rescue,
-                       Integer ilastik_label_BG, Double probability_threshold_BG) {
+                       Integer ilastik_label_BG, Double probability_threshold_BG,
+                       Boolean keep_only_largest) {
     robustlyGetAll(plate_wrp, "well", user_client).each{ well_wrp ->
         processSingleWell(user_client, well_wrp,
                      ilastik_project, ilastik_project_type,
@@ -434,7 +440,8 @@ def processSinglePlate(Client user_client, PlateWrapper plate_wrp,
                      output_directory,
                      headless_mode, debug, tool_version,
                      use_existing, final_object, rescue,
-                     ilastik_label_BG, probability_threshold_BG)
+                     ilastik_label_BG, probability_threshold_BG,
+                     keep_only_largest)
     }
 }
 
@@ -448,7 +455,8 @@ def processSingleWell(Client user_client, WellWrapper well_wrp,
                       File output_directory,
                       Boolean headless_mode, Boolean debug, String tool_version, Boolean use_existing,
                       String final_object, Boolean rescue,
-                      Integer ilastik_label_BG, Double probability_threshold_BG) {
+                      Integer ilastik_label_BG, Double probability_threshold_BG,
+                      Boolean keep_only_largest) {
     well_wrp.getWellSamples().each{
         processImage(user_client, it.getImage(),
                      ilastik_project, ilastik_project_type,
@@ -459,7 +467,8 @@ def processSingleWell(Client user_client, WellWrapper well_wrp,
                      output_directory,
                      headless_mode, debug, tool_version,
                      use_existing, final_object, rescue,
-                     ilastik_label_BG, probability_threshold_BG)
+                     ilastik_label_BG, probability_threshold_BG,
+                     keep_only_largest)
     }
 }
 
@@ -473,7 +482,8 @@ def processImage(Client user_client, ImageWrapper image_wrp,
                  File output_directory,
                  Boolean headless_mode, Boolean debug, String tool_version,
                  Boolean use_existing, String final_object, Boolean rescue,
-                 Integer ilastik_label_BG, Double probability_threshold_BG) {
+                 Integer ilastik_label_BG, Double probability_threshold_BG,
+                 Boolean keep_only_largest) {
 
     IJ.run("Close All", "")
     IJ.run("Clear Results")
@@ -516,6 +526,7 @@ def processImage(Client user_client, ImageWrapper image_wrp,
     println "Getting image from OMERO"
 
     ImagePlus imp = robustlytoImagePlus(image_wrp, user_client)
+	// ImagePlus imp = IJ.openImage("/home/ldelisle/Desktop/EXP095_LE_PEG_CTGF_PLATE_120h.companion.ome [C2_1_merge].tif")
 
     if (!headless_mode) {
         imp.show()
@@ -551,10 +562,12 @@ def processImage(Client user_client, ImageWrapper image_wrp,
     }
     // Define what will be defined in all cases:
     double pixelWidth
-    ImagePlus newMask_imp
+    ImagePlus mask_imp
+    List<ROIWrapper> updatedRoisW
     List<Roi> updatedRois
     // Or in both:
     TableWrapper my_table
+    Boolean use_roi_name = true
 
     if (use_existing || rescue) {
         // get the list of image tables
@@ -666,7 +679,7 @@ def processImage(Client user_client, ImageWrapper image_wrp,
         }
 
         // Get only the channel for the gastruloid/background prediction
-        ImagePlus mask_imp = new Duplicator().run(predictions_imp, ilastik_label_OI, ilastik_label_OI, 1, 1, 1, nT);
+        mask_imp = new Duplicator().run(predictions_imp, ilastik_label_OI, ilastik_label_OI, 1, 1, 1, nT);
         // This title will appear in the result table
         mask_imp.setTitle(image_basename)
         // Apply threshold:
@@ -698,42 +711,60 @@ def processImage(Client user_client, ImageWrapper image_wrp,
 
         println "Found " + rt.size() + " ROIs"
 
-        // make a "clean" mask
-        newMask_imp = IJ.createImage("CleanMask", "8-bit black", imp.getWidth(), imp.getHeight(), nT);
-        if (nT > 1) {
-            HyperStackConverter.toHyperStack(newMask_imp, 1, 1, nT, "xyctz", "Color");
-        }
-        if (!headless_mode) {newMask_imp.show()}
-
         Overlay ov = mask_imp.getOverlay()
-        // Let's keep only the largest area for each time:
+        // We store in clean_overlay all gastruloids to measure
+        // They must have names and appropriate position
         Overlay clean_overlay = new Overlay()
-        Roi largest_roi_inT
-        for (int t=1;t<=nT;t++) {
-            // Don't ask me why we need to refer to Z pos and not T/Frame
-            ArrayList<Roi> all_rois_inT = ov.findAll{ roi -> roi.getZPosition() == t}
-            println "There are " + all_rois_inT.size() + " in time " + t
-            if (all_rois_inT.size() == 0) {
-                // We arbitrary design a ROI of size 1x1
-                largest_roi_inT = new Roi(0,0,1,1)
-                largest_roi_inT.setName("GastruloidNotFound_t" + t)
-            } else {
-                largest_roi_inT = Collections.max(all_rois_inT, Comparator.comparing((roi) -> roi.getStatistics().area ))
-                largest_roi_inT.setName("Gastruloid_t" + t)
+        if (keep_only_largest) {
+            // Let's keep only the largest area for each time:
+            Roi largest_roi_inT
+            for (int t=1;t<=nT;t++) {
+                // Don't ask me why we need to refer to Z pos and not T/Frame
+                ArrayList<Roi> all_rois_inT = ov.findAll{ roi -> roi.getZPosition() == t}
+                println "There are " + all_rois_inT.size() + " in time " + t
+                if (all_rois_inT.size() > 0) {
+                    largest_roi_inT = Collections.max(all_rois_inT, Comparator.comparing((roi) -> roi.getStatistics().area ))
+                    largest_roi_inT.setName("Gastruloid_t" + t + "_id1")
+                } else {
+                    // We arbitrary design a ROI of size 1x1
+                    largest_roi_inT = new Roi(0,0,1,1)
+                    largest_roi_inT.setName("GastruloidNotFound_t" + t)
+                }
+                // Update the position before adding to the clean_overlay
+                largest_roi_inT.setPosition( ilastik_input_ch, 1, t)
+                clean_overlay.add(largest_roi_inT)
             }
-            // Fill the frame t with the largest_roi_inT
-            newMask_imp.setT(t)
-            Overlay t_ov = new Overlay(largest_roi_inT)
-            t_ov.fill(newMask_imp,  Color.white, Color.black)
-            // Update the position before adding to the clean_overlay
-            largest_roi_inT.setPosition( ilastik_input_ch, 1, t)
-            clean_overlay.add(largest_roi_inT)
-        }
+        } else {
+            // We keep all
+            // We store the last number given:
+            int[] lastID = new int[nT]
+            ov.each{ Roi roi ->
+                // Don't ask me why we need to refer to Z pos and not T/Frame
+                t = roi.getZPosition()
+                id = lastID[t - 1] + 1
+                roi.setName("Gastruloid_t" + t + "_id" + id)
+                // Increase lastID:
+                lastID[t - 1] += 1
+                // Update the position before adding to the clean_overlay
+                roi.setPosition( ilastik_input_ch, 1, t)
+                clean_overlay.add(roi)
+            }
+            // Fill timepoints with no ROI with notfound:
+            Roi roi
+            for (int t=1;t<=nT;t++) {
+                if (lastID[t - 1] == 0) {
+                    // We arbitrary design a ROI of size 1x1
+                    roi = new Roi(0,0,1,1)
+                    roi.setName("GastruloidNotFound_t" + t)
+                    // Update the position before adding to the clean_overlay
+                    roi.setPosition( ilastik_input_ch, 1, t)
+                    clean_overlay.add(roi)
+                }
 
+            }
+        }
         // Measure this new overlay:
         rt = clean_overlay.measure(imp)
-
-        assert rt.size() == nT: "Was expecting as many entry as time points"
 
         // Get Date
         Date date = new Date()
@@ -758,19 +789,21 @@ def processImage(Client user_client, ImageWrapper image_wrp,
             // Strings that can be converted to double are stored in double
             // in omero so to create the super_table we need to store all
             // them as Double:
-            rt.setValue("Time", row, label.split(":")[1].split("_t")[-1] as Double)
+            rt.setValue("Time", row, label.split(":")[1].split("_t")[-1].split("_id")[0] as Double)
             rt.setValue("ROI_type", row, label.split(":")[1].split("_t")[0])
             Roi current_roi = clean_overlay[row]
             Double[] centroid = current_roi.getContourCentroid()
             rt.setValue("XCentroid", row, centroid[0])
             rt.setValue("YCentroid", row, centroid[1])
+            assert label.split(":")[1] == current_roi.getName() : "Name in ov does not match name in rt";
         }
         println "Store " + clean_overlay.size() + " ROIs on OMERO"
         // Save ROIs to omero
         robustlysaveROIs(image_wrp, user_client, ROIWrapper.fromImageJ(clean_overlay as List))
 
         // Get them back with IDs:
-        updatedRois = ROIWrapper.toImageJ(robustlyGetROIs(image_wrp, user_client), "ROI")
+        updatedRoisW = robustlyGetROIs(image_wrp, user_client)
+        updatedRois = ROIWrapper.toImageJ(updatedRoisW, "ROI")
     } else {
         // reinitialize the rt
         rt = new ResultsTable()
@@ -784,6 +817,7 @@ def processImage(Client user_client, ImageWrapper image_wrp,
             }
         }
         // Add ROI column
+        use_roi_name = false
         for ( int row = 0;row<rt.size();row++) {
             rt.setValue("ROI", row, my_table.getData(row, 1).getId())
         }
@@ -807,7 +841,7 @@ def processImage(Client user_client, ImageWrapper image_wrp,
                 rt.setValue("MinSimilarity", row, min_similarity)
             }
             // Remove any roi which is not gastruloid:
-            println "Remove ROIs other than gastruloids segmentation results and tables"
+            println "Remove ROIs other than segmentation results and tables"
             // In order to reduce the number of 'servantsPerSession'
             // Which reached 10k and then caused failure
             // I store them in a list
@@ -831,65 +865,99 @@ def processImage(Client user_client, ImageWrapper image_wrp,
             robustlyDeleteTables(image_wrp, user_client)
 
             // Retrieve the ROIs from omero:
-            updatedRois = ROIWrapper.toImageJ(robustlyGetROIs(image_wrp, user_client), "ROI")
+            updatedRoisW = robustlyGetROIs(image_wrp, user_client)
+            updatedRois = ROIWrapper.toImageJ(updatedRoisW, "ROI")
             // Create a clean mask
-            newMask_imp = IJ.createImage("CleanMask", "8-bit black", imp.getWidth(), imp.getHeight(), nT);
+            mask_imp = IJ.createImage("CleanMask", "8-bit black", imp.getWidth(), imp.getHeight(), nT);
             if (nT > 1) {
-                HyperStackConverter.toHyperStack(newMask_imp, 1, 1, nT, "xyctz", "Color");
+                HyperStackConverter.toHyperStack(mask_imp, 1, 1, nT, "xyctz", "Color");
             }
-            if (!headless_mode) {newMask_imp.show()}
-            for (largest_roi_inT in updatedRois) {
-                t = largest_roi_inT.getTPosition()
-                Overlay t_ov = new Overlay(largest_roi_inT)
-                // Fill the frame t with the largest_roi_inT
-                newMask_imp.setT(t)
-                t_ov.fill(newMask_imp,  Color.white, Color.black)
+            if (!headless_mode) {mask_imp.show()}
+            for (roi in updatedRois) {
+                t = roi.getTPosition()
+                Overlay t_ov = new Overlay(roi)
+                // Fill the frame t with the roi
+                mask_imp.setT(t)
+                t_ov.fill(mask_imp,  Color.white, Color.black)
             }
             IJ.run("Set Scale...", "distance=1 known=" + scale + " unit=micron")
-            pixelWidth = newMask_imp.getCalibration().pixelWidth
+            pixelWidth = mask_imp.getCalibration().pixelWidth
             println "pixelWidth is " + pixelWidth
 
         } else {
             // Retrieve the ROIs from omero:
-            updatedRois = ROIWrapper.toImageJ(robustlyGetROIs(image_wrp, user_client), "ROI")
+            updatedRoisW = robustlyGetROIs(image_wrp, user_client)
+            updatedRois = ROIWrapper.toImageJ(updatedRoisW, "ROI")
         }
     }
     if (get_spine) {
-        /**
-        * The MaxInscribedCircles magic is here
-        */
-        isSelectionOnly = false
-        isGetSpine = true
-        appendPositionToName = true
-        MaxInscribedCircles mic = MaxInscribedCircles.builder(newMask_imp)
-            .minimumDiameter(minimum_diameter)
-            .useSelectionOnly(isSelectionOnly)
-            .getSpine(isGetSpine)
-            .spineClosenessTolerance(closeness_tolerance)
-            .spineMinimumSimilarity(min_similarity)
-            .appendPositionToName(appendPositionToName)
-            .build()
-        println "Get spines"
-        mic.process()
-        List<Roi> all_circles = mic.getCircles();
-        List<Roi> all_spines = mic.getSpines();
-
-        /**
-        *  For each Time-point, find the :
-        *  - the largest cicle
-        *  - the spine, and the coordinates of end-points
-        *  Measure distances and inverses spine roi if necessary
-        *  Add value to table with Elongation Index
-        */
-
+        // println use_roi_name
+        // Scan ROIs and
+        // Put them in HashMap
+        Map<String, Roi> gastruloid_rois = new HashMap<>()
+        for (roi_i = 0; roi_i < updatedRois.size(); roi_i ++) {
+            Roi roi = updatedRois[roi_i]
+            roi_name = roi.getName()
+            if (roi_name.toLowerCase().startsWith("gastruloid") && !roi_name.toLowerCase().startsWith("gastruloidnotfound")) {
+                // println "Putting " + roi_name + " in table."
+                if (use_roi_name) {
+                    assert !gastruloid_rois.containsKey(roi_name); "Duplicated gastruloid ROI name"
+                    gastruloid_rois.put(roi_name, roi)
+                } else {
+                    // println "ID is: " + updatedRoisW[roi_i].getId()
+                    gastruloid_rois.put(updatedRoisW[roi_i].getId(), roi)
+                }
+            }
+        }
         for (int row = 0 ; row < rt.size();row++) {
-
-            int t = rt.getValue("Time", row) as int
-            println "#############"+t
             String roi_type = rt.getStringValue("ROI_type", row)
-
             if (roi_type == "Gastruloid") {
-                List<Roi> circles_t =  all_circles.findAll{ roi -> roi.getName().endsWith("P_"+t)}
+                // Find the corresponding ROI
+                String roi_name
+                Roi current_roi
+                if (use_roi_name) {
+                    roi_name = rt.getStringValue("ROI", row)
+                    current_roi = gastruloid_rois.get(roi_name)
+                } else {
+                    Long roi_id = rt.getValue("ROI", row) as int
+                    current_roi = gastruloid_rois.get(roi_id)
+                    roi_name = current_roi.getName()
+                }
+                println roi_name
+
+                assert current_roi != null; "The ROI of row " + row + "is not on OMERO"
+                t = current_roi.getTPosition()
+                assert t == rt.getValue("Time", row) as int; "T position does not match Time in rt"
+                /**
+                * The MaxInscribedCircles magic is here
+                */
+                
+                ImagePlus mask_imp_single = new Duplicator().run(mask_imp, 1, 1, 1, 1, t, t)
+                mask_imp_single.setRoi(current_roi)
+                
+                isSelectionOnly = true
+                isGetSpine = true
+                appendPositionToName = false
+                MaxInscribedCircles mic = MaxInscribedCircles.builder(mask_imp_single)
+                    .minimumDiameter(minimum_diameter)
+                    .useSelectionOnly(isSelectionOnly)
+                    .getSpine(isGetSpine)
+                    .spineClosenessTolerance(closeness_tolerance)
+                    .spineMinimumSimilarity(min_similarity)
+                    .appendPositionToName(appendPositionToName)
+                    .build()
+                println "Get spines"
+                mic.process()
+                List<Roi> circles_t = mic.getCircles()
+                Roi spine_roi = mic.getSpines()[0]
+
+                /**
+                *  For each Time-point, find the :
+                *  - the largest cicle
+                *  - the spine, and the coordinates of end-points
+                *  Measure distances and inverses spine roi if necessary
+                *  Add value to table with Elongation Index
+                */
 
                 if (circles_t.size() > 0) {
                     Roi largestCircle_roi = circles_t[0]
@@ -902,7 +970,10 @@ def processImage(Client user_client, ImageWrapper image_wrp,
                     ArrayList<Roi> rois_to_add_to_omero
                     rt.setValue("LargestRadius", row, circle_roi_radius * pixelWidth)
                     if (debug) {
-                        circles_t.each{it.setPosition(ilastik_input_ch, 1, t)}
+                        circles_t.each{
+                        	it.setPosition(ilastik_input_ch, 1, t)
+                        	it.setName(it.getName() + "_" + roi_name)
+                        }
                         // First put all circles to omero:
                         robustlysaveROIs(image_wrp, user_client, ROIWrapper.fromImageJ(circles_t as List))
                         if (!headless_mode) {
@@ -910,6 +981,7 @@ def processImage(Client user_client, ImageWrapper image_wrp,
                         }
                     } else {
                         // First put the largest circle to omero:
+                        largestCircle_roi.setName(largestCircle_roi.getName() + "_" + roi_name)
                         robustlysaveROIs(image_wrp, user_client, ROIWrapper.fromImageJ([largestCircle_roi] as List))
                         if (!headless_mode) {
                             rm.addRoi(largestCircle_roi)
@@ -917,7 +989,6 @@ def processImage(Client user_client, ImageWrapper image_wrp,
                     }
 
                     // get the Spine, and its points
-                    Roi spine_roi = all_spines.findAll{ roi -> roi.getName().endsWith("P_"+t)}[0]
                     println "Spine is " + spine_roi
                     if (spine_roi != null){
                         //println spine_roi
@@ -947,6 +1018,7 @@ def processImage(Client user_client, ImageWrapper image_wrp,
                         rt.setValue("SpineLength", row, line_roi_length * pixelWidth)
                         rt.setValue("ElongationIndex", row, line_roi_length / (2*circle_roi_radius))
                         spine_roi.setPosition( ilastik_input_ch, 1, t)
+                        spine_roi.setName(spine_roi.getName() + "_" + roi_name)
                         robustlysaveROIs(image_wrp, user_client, ROIWrapper.fromImageJ([spine_roi] as List))
                         if (!headless_mode) {
                             rm.addRoi(spine_roi)
@@ -1008,7 +1080,7 @@ def processImage(Client user_client, ImageWrapper image_wrp,
 // In simple-omero-client
 // Strings that can be converted to double are stored in double
 // In order to build the super_table, tool_version should stay String
-String tool_version = "Phase_v20230727"
+String tool_version = "Phase_v20230728"
 
 // User set variables
 
@@ -1031,6 +1103,7 @@ String tool_version = "Phase_v20230727"
 #@ Double(label="Probability threshold for ilastik", min=0, max=1, value=0.65) probability_threshold
 #@ Double(label="Radius for median (=smooth the mask)", min=1, value=20) radius_median
 #@ Integer(label="Minimum surface for Analyze Particle", value=5000) min_size_particle
+#@ Boolean(label="Keep only one gastruloid per timepoint", value=true) keep_only_largest
 
 #@ String(visibility=MESSAGE, value="Parameters for segmentation/ROI of background", required=false) msg3
 #@ Integer(label="Ilastik label of background (put 0 if not present)", min=0, value=1) ilastik_label_BG
@@ -1132,7 +1205,8 @@ if (user_client.isConnected()) {
                     output_directory,
                     headless_mode, debug, tool_version,
                     use_existing, "image", rescue,
-                    ilastik_label_BG, probability_threshold_BG)
+                    ilastik_label_BG, probability_threshold_BG,
+                    keep_only_largest)
                 break
             case "dataset":
                 DatasetWrapper dataset_wrp = robustlyGetOne(id, "dataset", user_client)
@@ -1158,7 +1232,8 @@ if (user_client.isConnected()) {
                      output_directory,
                      headless_mode, debug, tool_version,
                      use_existing, "dataset", rescue,
-                     ilastik_label_BG, probability_threshold_BG)
+                     ilastik_label_BG, probability_threshold_BG,
+                     keep_only_largest)
                 // upload the table on OMERO
                 super_table.setName(table_name + "_global")
                 robustlyAddAndReplaceTable(dataset_wrp, user_client, super_table)
@@ -1187,7 +1262,8 @@ if (user_client.isConnected()) {
                      output_directory,
                      headless_mode, debug, tool_version,
                      use_existing, "well", rescue,
-                     ilastik_label_BG, probability_threshold_BG)
+                     ilastik_label_BG, probability_threshold_BG,
+                     keep_only_largest)
                 // upload the table on OMERO
                 super_table.setName(table_name + "_global")
                 robustlyAddAndReplaceTable(well_wrp, user_client, super_table)
@@ -1216,7 +1292,8 @@ if (user_client.isConnected()) {
                      output_directory,
                      headless_mode, debug, tool_version,
                      use_existing, "plate", rescue,
-                     ilastik_label_BG, probability_threshold_BG)
+                     ilastik_label_BG, probability_threshold_BG,
+                     keep_only_largest)
                 // upload the table on OMERO
                 super_table.setName(table_name + "_global")
                 robustlyAddAndReplaceTable(plate_wrp, user_client, super_table)

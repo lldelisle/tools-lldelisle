@@ -1,6 +1,6 @@
-<tool id="omero_hyperstack_to_gastruloid_measurements" name="Omero hyperstack to Gastruloid measurements" profile="20.01" version="@TOOL_VERSION@+galaxy2">
+<tool id="omero_hyperstack_to_gastruloid_measurements" name="Omero hyperstack to Gastruloid measurements" profile="20.01" version="@TOOL_VERSION@+galaxy0">
     <macros>
-        <token name="@TOOL_VERSION@">20230727</token>
+        <token name="@TOOL_VERSION@">20230728</token>
         <xml name="segmentation">
             <param name="ilastik_project" type="data" format="h5" label="Ilastik project" />
             <param name="ilastik_project_type" type="select" label="Type of Ilastik project">
@@ -24,7 +24,8 @@
                 </when>
             </conditional>
             <param name="radius_median" type="float" value="20" label="Radius for median (=smooth the mask)" />
-            <param name="min_size_particle" type="integer" min="0" value="5000" label="Minimum surface for Analyze Particle" />                
+            <param name="min_size_particle" type="integer" min="0" value="5000" label="Minimum surface for Analyze Particle" />
+            <param name="keep_only_largest" type="boolean" truevalue="true" falsevalue="false" checked="true" label="Keep only one gastruloid per timepoint" />
         </xml>
     </macros>
     <requirements>
@@ -57,7 +58,7 @@
         ## Because ilastik wants to write to ${HOME}/.cache and ${HOME}/.config
         export HOME=`pwd` &&
         ImageJ-ilastik --ij2 --headless --console --run '$__tool_directory__/'1-omero_timelapse_image_to_measurements_phase.groovy 
-            'USERNAME="",PASSWORD="",credentials="${credentials}",host="${omero_host}",port="${omero_port}",object_type="${omero_object.object_type}",id="${omero_object.omero_id}",use_existing="${mode.use_existing}",ilastik_project="$ilastik_project_file",ilastik_project_short_name="$ilastik_project_name",ilastik_project_type="${mode.ilastik_project_type}",ilastik_label_OI="${mode.ilastik_label_OI}",probability_threshold="${mode.probability_threshold}",radius_median="${mode.radius_median}",min_size_particle="${mode.min_size_particle}",get_spine="true",minimum_diameter="${minimum_diameter}",closeness_tolerance="${closeness_tolerance}",min_similarity="${min_similarity}",output_directory="output",debug="${debug}",rescue="${mode.rescue}",ilastik_label_BG="${mode.background.ilastik_label_BG}",probability_threshold_BG="${mode.background.probability_threshold_BG}"' > output.log
+            'USERNAME="",PASSWORD="",credentials="${credentials}",host="${omero_host}",port="${omero_port}",object_type="${omero_object.object_type}",id="${omero_object.omero_id}",use_existing="${mode.use_existing}",ilastik_project="$ilastik_project_file",ilastik_project_short_name="$ilastik_project_name",ilastik_project_type="${mode.ilastik_project_type}",ilastik_label_OI="${mode.ilastik_label_OI}",probability_threshold="${mode.probability_threshold}",radius_median="${mode.radius_median}",min_size_particle="${mode.min_size_particle}",get_spine="true",minimum_diameter="${minimum_diameter}",closeness_tolerance="${closeness_tolerance}",min_similarity="${min_similarity}",output_directory="output",debug="${debug}",rescue="${mode.rescue}",ilastik_label_BG="${mode.background.ilastik_label_BG}",probability_threshold_BG="${mode.background.probability_threshold_BG}",keep_only_largest="${mode.keep_only_largest}"' > output.log
         ]]>
     </command>
     <configfiles>
@@ -121,6 +122,7 @@ $password
                     <param name="ilastik_label_BG" type="hidden" value="0"/>
                     <param name="probability_threshold_BG" type="hidden" value="0"/>
                 </section>
+                <param name="keep_only_largest" type="hidden" value="true"/>
             </when>
         </conditional>
         <param name="minimum_diameter" type="integer" min="0" value="20" label="Minimum diameter of inscribed circles" />
