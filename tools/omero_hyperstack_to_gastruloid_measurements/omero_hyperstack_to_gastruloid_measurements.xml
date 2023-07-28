@@ -1,4 +1,4 @@
-<tool id="omero_hyperstack_to_gastruloid_measurements" name="Omero hyperstack to Gastruloid measurements" profile="20.01" version="@TOOL_VERSION@+galaxy1">
+<tool id="omero_hyperstack_to_gastruloid_measurements" name="Omero hyperstack to Gastruloid measurements" profile="20.01" version="@TOOL_VERSION@+galaxy2">
     <macros>
         <token name="@TOOL_VERSION@">20230727</token>
         <xml name="segmentation">
