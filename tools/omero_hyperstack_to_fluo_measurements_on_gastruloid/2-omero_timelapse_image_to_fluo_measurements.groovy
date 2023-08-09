@@ -5,7 +5,7 @@
 // Interactions with omero are largely inspired by
 // templates available at https://github.com/BIOP/OMERO-scripts/tree/main/Fiji
 
-// Last modification: 2023-07-27
+// Last modification: 2023-08-09
 
 // This macro works both in headless
 // or GUI
@@ -15,13 +15,14 @@
 // The input image(s) may have multiple channels
 // The channel to quantify on are set as parameter
 // The input image(s) must have ROIs on omero
-// Gastruloids ROI names must start with gastruloid (case insensitive)
-// Spine ROI names must start with spine (case insensitive)
+// Gastruloids ROI names must start with gastruloid_ (case insensitive)
+// Spine ROI names must start with spine_ (case insensitive)
+// Background ROI names must start with background_ (case insensitive)
 
 // In both modes,
 // The result table is written to {image_basename}__{t}_profil_Results.csv
 // One table per time
-// The measures are: Area,Mean,Min,Max,Date,Version,NPieces,Channel,Segment
+// The measures are: Area,Mean,Min,Max,Date,Version,NPieces,Channel,Time,BaseImage,ROI,ROI_type,ROI_Gastruloid_ID,ROI_Gastruloid_name
 // A single table per image is sent to omero
 
 import fr.igred.omero.annotations.TableWrapper
@@ -549,6 +550,73 @@ def find_index(poly_x, poly_y, pair A) {
 }
 
 
+def writeResultsFromOv(Client user_client, ImagePlus imp, Integer quantif_ch,
+                       Integer t, Overlay ov,
+                       String now, String tool_version, Integer n_pieces,
+                       Long roi_gastruloid_id, String roi_gastruloid_name,
+                       ImageWrapper image_wpr, String table_id) {
+    imp.setPosition(quantif_ch, 1, t)
+    println "set overlay"
+    imp.setOverlay(ov)
+    // Measure on each item of the overlay
+    def rt_profil = ov.measure(imp)
+    // Debug
+    // println "Columns are:" + rt_profil.getColumnHeadings()
+    if (rt_profil.getColumnIndex("Group") != ResultsTable.COLUMN_NOT_FOUND) {
+        println "Remove Group column"
+        rt_profil.deleteColumn("Group")
+    }
+
+    // Add Date, version and params
+    for ( int row = 0;row<rt_profil.size();row++) {
+        rt_profil.setValue("Date", row, now)
+        rt_profil.setValue("Version", row, tool_version)
+        rt_profil.setValue("NPieces", row, n_pieces)
+        rt_profil.setValue("Channel", row, quantif_ch)
+        rt_profil.setValue("Time", row, t)
+        String label = rt_profil.getLabel(row)
+        rt_profil.setValue("BaseImage", row, label.split(":")[0])
+        rt_profil.setValue("ROI", row, label.split(":")[1])
+        rt_profil.setValue("ROI_type", row, label.split(":")[1].split("_t")[0])
+        rt_profil.setValue("ROI_Gastruloid_ID", row, roi_gastruloid_id)
+        rt_profil.setValue("ROI_Gastruloid_name", row, roi_gastruloid_name)
+
+    }
+
+    // Debug
+    // println "Now columns are:" + rt_profil.getColumnHeadings()
+
+    println "Store " + ov.size() + " ROIs on OMERO"
+
+    // Save ROIs to omero
+    robustlysaveROIs(image_wpr, user_client, ROIWrapper.fromImageJ(ov as List))
+
+    // Get them back with IDs:
+    ArrayList<Roi> updatedRois = []
+    // println "Now there is"
+    updatedRois = ROIWrapper.toImageJ(robustlyGetROIs(image_wpr, user_client), "ROI")
+    println "Writting measurements to file"
+    String image_basename = image_wpr.getName()
+    rt_profil.save(output_directory.toString() + '/' + image_basename+"__"+table_id+"_profil_Results.csv" )
+    if (table_wpr == null) {
+        table_wpr = robustlyNewTableWrapper(user_client, rt_profil, image_wpr.getId(), updatedRois, "ROI")
+        // add the same infos to the super_table
+        if (super_table == null) {
+            println "super_table is null"
+            super_table = robustlyNewTableWrapper(user_client, rt_profil, image_wpr.getId(), updatedRois, "ROI")
+        } else {
+            println "adding rows to super_table"
+            robustlyAddRows(super_table, user_client, rt_profil, image_wpr.getId(), updatedRois, "ROI")
+        }
+    } else {
+        println "adding rows to table_wpr"
+        robustlyAddRows(table_wpr, user_client, rt_profil, image_wpr.getId(), updatedRois, "ROI")
+        println "adding rows to super_table"
+        robustlyAddRows(super_table, user_client, rt_profil, image_wpr.getId(), updatedRois, "ROI")
+    }
+}
+
+
 def processDataset(Client user_client, DatasetWrapper dataset_wpr,
                    File output_directory, Integer quantif_ch,
                    Integer n_pieces,
@@ -627,7 +695,7 @@ def processImage(Client user_client, ImageWrapper image_wpr,
             println ("screen_name : "+it.getName() + " / id : "+ it.getId())
         }
     }
-    // Get Gastruloids and Spines from omero:
+    // Get Gastruloids, Spines and Background from omero:
     println "Get ROIs from OMERO"
     List<ROIWrapper> omeroRW = robustlyGetROIs(image_wpr, user_client)
     List<Roi> omeroRois = ROIWrapper.toImageJ(omeroRW, "ROI")
@@ -646,29 +714,57 @@ def processImage(Client user_client, ImageWrapper image_wpr,
             robustlyDeleteTableWrapper(user_client, t_wpr)
         }
     }
-    // Define an omero table
-    TableWrapper table_wpr
+    // Define an omero table that must be global:
+    table_wpr = null
     // Scan ROIs and
     // Put them in HashMap
+    // In the first versions, single gastruloid per time
+    // Gastruloids are 'Gastruloid_t' + time
+    // Spines are 'Spine-P' + time
+    // In the second versions, multiple gastruloid per time
+    // Gastruloids are 'Gastruloid_t' + time + '_id' + id
+    // Spines are 'Spine' + gastruloid name
+
+    // Backgrounds are 'Background_t' + t
     Map<String, Roi> gastruloid_rois = new HashMap<>();
+    Map<String, Roi> gastruloid_roi_ids = new HashMap<>();
     Map<String, Roi> spine_rois = new HashMap<>();
+    Map<String, Roi> background_rois = new HashMap<>();
     Map<String, Boolean> spine_rois_on_fluo = new HashMap<>();
-    for (roi in omeroRois) {
+    for (roi_i = 0; roi_i < omeroRois.size(); roi_i ++) {
+        Roi roi = omeroRois[roi_i]
         current_t = roi.getTPosition()
         roi_name = roi.getName()
         // println "Found ROI: " + roi_name
 
-        if (roi_name.toLowerCase().startsWith("gastruloid") && !roi_name.toLowerCase().startsWith("gastruloidnotfound")) {
+        if (roi_name.toLowerCase().startsWith("gastruloid_")) {
         	// println "This is a gastruloid of time " + current_t
-            gastruloid_rois.put(current_t, roi)
+            potential_id = roi_name.toLowerCase().replace("gastruloid_", "")
+            if (potential_id.contains('_id')) {
+                gastruloid_rois.put(potential_id, roi)
+                gastruloid_roi_ids.put(potential_id, omeroRW[roi_i].getId())
+            } else {
+                gastruloid_rois.put("t" + current_t, roi)
+                gastruloid_roi_ids.put("t" + current_t, omeroRW[roi_i].getId())
+            }
         }
         if (roi_name.toLowerCase().startsWith("spine")) {
         	// println "This is a spine of time " + current_t
-            if (roi.getCPosition() != quantif_ch) {
-                spine_rois.put(current_t, roi)
+            split_res = roi_name.toLowerCase().split("gastruloid_")
+            if (split_res.length > 1) {
+                id = split_res[1]
             } else {
-                spine_rois_on_fluo.put(current_t, true)
+                id = "t" + current_t
             }
+            if (roi.getCPosition() != quantif_ch) {
+                spine_rois.put(id, roi)
+            } else {
+                spine_rois_on_fluo.put(id, true)
+            }
+        }
+        if (roi_name.toLowerCase().startsWith("background")) {
+        	// println "This is a gastruloid of time " + current_t
+            background_rois.put(current_t, roi)
         }
     }
     
@@ -693,20 +789,17 @@ def processImage(Client user_client, ImageWrapper image_wpr,
 
     // Remove all existing ROIs for the image relative to fluo measurements:
     rois_to_delete = []
-
-    for (int t = 1; t <= nT; t++ ){
-        // Remove existing ROIs
-        // println "Time " + t
-        omeroRW.each{
-            String roi_name = it.toImageJ().get(0).getName()
-            if ((roi_name == "WholeGastruloid_t" + t) ||
-                (roi_name == "Full_t" + t) ||
-                (roi_name == "NonGastruloid_t" + t) ||
-                (roi_name.startsWith("Segment_") &&
-                    roi_name.endsWith("_t" + t))) {
-                    // println "Add " + roi_name + " to ROIs to remove."
-                    rois_to_delete.add(it)
-            }
+    
+    // Remove existing ROIs
+    omeroRW.each{
+        String roi_name = it.toImageJ().get(0).getName()
+        if ((roi_name.startsWith("WholeGastruloid_")) ||
+            (roi_name.startsWith("Full_")) ||
+            (roi_name.startsWith("NonGastruloid_")) ||
+            (roi_name.startsWith("WholeBackground_")) ||
+            (roi_name.startsWith("Segment_"))) {
+                // println "Add " + roi_name + " to ROIs to remove."
+                rois_to_delete.add(it)
         }
     }
     println "Remove " + rois_to_delete.size() + " ROIs from previous experiments on OMERO"
@@ -727,239 +820,199 @@ def processImage(Client user_client, ImageWrapper image_wpr,
     Date date = new Date()
     String now = date.format("yyyy-MM-dd_HH-mm")
 
+    // First take care of Full and Background
+    Map<String, Roi> full_rois = new HashMap<>()
     for (int t = 1; t <= nT; t++ ){
-    	println "Analysis on t: " + t
-        // We need to create one overlay per frame
+        // We need to create one overlay per time
         // In order to measure it
         Overlay ov = new Overlay()
-        gastruloid_roi = gastruloid_rois.get(t)
-        if ( gastruloid_roi != null) {
-        	println "Gastruloid found"
-            // There is a gastruloid
-            gastruloid_roi.setName("WholeGastruloid_t" + t)
-            gastruloid_roi.setPosition( quantif_ch, 1, t)
-            ov.add(gastruloid_roi)
-            full = new Roi(0, 0, imp.getWidth(), imp.getHeight())
-            full.setName("Full_t" + t)
-            full.setPosition( quantif_ch, 1, t)
-            ov.add(full)
-            non_gastruloid = new ShapeRoi(full).not(new ShapeRoi(gastruloid_roi))
-            non_gastruloid.setName("NonGastruloid_t" + t)
-            non_gastruloid.setPosition( quantif_ch, 1, t)
-            ov.add(non_gastruloid)
+        full = new Roi(0, 0, imp.getWidth(), imp.getHeight())
+        full.setName("Full_t" + t)
+        full.setPosition( quantif_ch, 1, t)
+        full_rois.put(t, full)
+        ov.add(full)
+        // Add background if exists:
+        if (background_rois.get(t) != null) {
+            background_roi = background_rois.get(t)
+            background_roi.setName("WholeBackground_t" + t)
+            background_roi.setPosition( quantif_ch, 1, t)
+            ov.add(background_roi)
+        }
+        writeResultsFromOv(user_client, imp, quantif_ch, t, ov,
+                           now, tool_version, n_pieces,
+                           0, "None_t" + t,
+                           image_wpr, "common_t" + t)
+    }
 
-            println "Current t = " + t
-            spine_roi = spine_rois.get(t)
-            println "spine is " + spine_roi
-            if (spine_roi != null) {
-                // Extract coordinates of the spine
-                spine_xs = spine_roi.getFloatPolygon().xpoints
-                spine_ys = spine_roi.getFloatPolygon().ypoints
 
-                // A is first point
-                pair A = new pair(spine_xs[0], spine_ys[0])
-                // P is last point
-                pair P = new pair(spine_xs[-1], spine_ys[-1])
+    // Then take care of gastruloids
+    for (String id in gastruloid_rois.keySet()){
+        Roi gastruloid_roi = gastruloid_rois.get(id)
+        String gastruloid_name = gastruloid_roi.getName()
+        t = gastruloid_roi.getTPosition()
+    	println "Analysis on " + id
+        // We need to create one overlay per gastruloid
+        // In order to measure it
+        Overlay ov = new Overlay()
+        gastruloid_roi.setName("WholeGastruloid_" + id)
+        gastruloid_roi.setPosition( quantif_ch, 1, t)
+        ov.add(gastruloid_roi)
+        full = full_rois.get(t)
+        non_gastruloid = new ShapeRoi(full).not(new ShapeRoi(gastruloid_roi))
+        non_gastruloid.setName("NonGastruloid_" + id)
+        non_gastruloid.setPosition( quantif_ch, 1, t)
+        ov.add(non_gastruloid)
+        spine_roi = spine_rois.get(id)
+        println "spine is " + spine_roi
+        if (spine_roi != null) {
+            // Extract coordinates of the spine
+            spine_xs = spine_roi.getFloatPolygon().xpoints
+            spine_ys = spine_roi.getFloatPolygon().ypoints
 
-                // Extract coordinates of the ROI
-                gastruloid_x = gastruloid_roi.getFloatPolygon().xpoints
-                gastruloid_y = gastruloid_roi.getFloatPolygon().ypoints
+            // A is first point
+            pair A = new pair(spine_xs[0], spine_ys[0])
+            // P is last point
+            pair P = new pair(spine_xs[-1], spine_ys[-1])
 
-                // Find where integrate A and P in the ROI
-                // println "Find ap on gastruloid"
-                closest_seg_start_A = find_index(gastruloid_x, gastruloid_y, A)
-                closest_seg_start_P = find_index(gastruloid_x, gastruloid_y, P)
+            // Extract coordinates of the ROI
+            gastruloid_x = gastruloid_roi.getFloatPolygon().xpoints
+            gastruloid_y = gastruloid_roi.getFloatPolygon().ypoints
 
-                // Project A and P on the ROI:
-                pair projA = new pair()
-                pair projP = new pair()
-                if (closest_seg_start_A != (gastruloid_x.size() - 1)) {
-                    projA =  projection(new pair(gastruloid_x[closest_seg_start_A],
-                                                 gastruloid_y[closest_seg_start_A]),
-                                        new pair(gastruloid_x[closest_seg_start_A + 1],
-                                                 gastruloid_y[closest_seg_start_A + 1]),
-                                        A)
-                } else {
-                    projA =  projection(new pair(gastruloid_x[closest_seg_start_A],
-                                                 gastruloid_y[closest_seg_start_A]),
-                                        new pair(gastruloid_x[0],
-                                                 gastruloid_y[0]),
-                                        A)
-                }
-                if (closest_seg_start_P != (gastruloid_x.size() - 1)) {
-                    projP =  projection(new pair(gastruloid_x[closest_seg_start_P],
-                                                 gastruloid_y[closest_seg_start_P]),
-                                        new pair(gastruloid_x[closest_seg_start_P + 1],
-                                                 gastruloid_y[closest_seg_start_P + 1]),
-                                        P)
-                } else {
-                    projP =  projection(new pair(gastruloid_x[closest_seg_start_P],
-                                                 gastruloid_y[closest_seg_start_P]),
-                                        new pair(gastruloid_x[0],
-                                                 gastruloid_y[0]),
-                                        P)
-                }
-                // println "Projecting A:"
-                // println A.F + "," + A.S
-                // println projA.F + "," + projA.S
-                // println "and P:"
-                // println P.F + "," + P.S
-                // println projP.F + "," + projP.S
+            // Find where integrate A and P in the ROI
+            // println "Find ap on gastruloid"
+            closest_seg_start_A = find_index(gastruloid_x, gastruloid_y, A)
+            closest_seg_start_P = find_index(gastruloid_x, gastruloid_y, P)
 
-                // Create a new ROI with projA and projP
-                spine_xs_proj = [projA.F as float]
-                spine_xs_proj += Arrays.copyOfRange(spine_xs as float[], 1, spine_xs.size() - 1) as List
-                spine_xs_proj.add(projP.F as float)
-                // println spine_xs
-                // println spine_xs_proj
-                spine_ys_proj = [projA.S as float]
-                spine_ys_proj += Arrays.copyOfRange(spine_ys as float[], 1, spine_ys.size() - 1) as List
-                spine_ys_proj.add(projP.S as float)
-                // println spine_ys
-                // println spine_ys_proj
-                spine_roi_proj = new PolygonRoi(spine_xs_proj as float[], spine_ys_proj as float[], spine_xs_proj.size(), Roi.POLYLINE)
-                // println spine_roi_proj
-
-                // Create 2 polylines going from projA to projP using both sides of polygon
-                println "Split gastruloid ROI into 2 lines"
-                // First going increasing:
-                poly1_x = [projA.F]
-                poly1_y = [projA.S]
-                if (closest_seg_start_A + 1 < closest_seg_start_P) {
-                    // Just goes from one to the other
-                    poly1_x += Arrays.copyOfRange(gastruloid_x as float[], closest_seg_start_A + 1, closest_seg_start_P + 1) as List
-                    poly1_y += Arrays.copyOfRange(gastruloid_y as float[], closest_seg_start_A + 1, closest_seg_start_P + 1) as List
-                } else {
-                    // Goes from one to the end and from the start to the second one
-                    poly1_x += Arrays.copyOfRange(gastruloid_x as float[], closest_seg_start_A + 1, gastruloid_x.size()) as List
-                    poly1_x += Arrays.copyOfRange(gastruloid_x as float[], 0, closest_seg_start_P + 1) as List
-                    poly1_y += Arrays.copyOfRange(gastruloid_y as float[], closest_seg_start_A + 1, gastruloid_x.size()) as List
-                    poly1_y += Arrays.copyOfRange(gastruloid_y as float[], 0, closest_seg_start_P + 1) as List
-                }
-                poly1_x.add(projP.F)
-                poly1_y.add(projP.S)
-                poly1 = new PolygonRoi(poly1_x as float[], poly1_y as float[], poly1_x.size(), Roi.POLYLINE)
-                // Second going decreasing:
-                // Because it is easier we build it P to A
-                // And then revert it:
-                // Building
-                poly2_x = [projP.F]
-                poly2_y = [projP.S]
-                if (closest_seg_start_P + 1 <= closest_seg_start_A) {
-                    // Just goes from one to the other
-                    poly2_x += Arrays.copyOfRange(gastruloid_x as float[], closest_seg_start_P + 1, closest_seg_start_A + 1) as List
-                    poly2_y += Arrays.copyOfRange(gastruloid_y as float[], closest_seg_start_P + 1, closest_seg_start_A + 1) as List
-                } else {
-                    // Goes from one to the end and from the start to the second one
-                    poly2_x += Arrays.copyOfRange(gastruloid_x as float[], closest_seg_start_P + 1, gastruloid_x.size()) as List
-                    poly2_x += Arrays.copyOfRange(gastruloid_x as float[], 0, closest_seg_start_A + 1) as List
-                    poly2_y += Arrays.copyOfRange(gastruloid_y as float[], closest_seg_start_P + 1, gastruloid_x.size()) as List
-                    poly2_y += Arrays.copyOfRange(gastruloid_y as float[], 0, closest_seg_start_A + 1) as List
-                }
-                poly2_x.add(projA.F)
-                poly2_y.add(projA.S)
-                // Reverting
-                poly2_x = poly2_x.reverse()
-                poly2_y = poly2_y.reverse()
-                poly2 = new PolygonRoi(poly2_x as float[], poly2_y as float[], poly2_x.size(), Roi.POLYLINE)
-
-                // Now I cut into n_pieces pieces the 3 polylines:
-                // println "CUT"
-                cut_spine = getCooPoly(spine_roi_proj, n_pieces)
-                cut_poly1 = getCooPoly(poly1, n_pieces)
-                cut_poly2 = getCooPoly(poly2, n_pieces)
-
-                // For each piece we form the new ROI:
-                for (i = 0 ; i < n_pieces; i++) {
-                    // println "Reform " + i
-                    roi_x = [cut_spine[0][i][0]] + cut_poly1[0][i]+ [cut_spine[0][i][-1]] + cut_poly2[0][i].reverse()
-                    roi_y = [cut_spine[1][i][0]] + cut_poly1[1][i] + [cut_spine[1][i][-1]] + cut_poly2[1][i].reverse()
-                    new_roi = new PolygonRoi(roi_x as float[], roi_y as float[], roi_x.size(), Roi.POLYGON)
-                    // We restrict the piece to the part which
-                    // overlaps the gastruloid
-                    new_roi2 = new ShapeRoi(new_roi as Roi).and(new ShapeRoi(gastruloid_roi as Roi))
-                    new_roi2.setPosition( quantif_ch, 1, t)
-                    new_roi2.setName("Segment_" + i + "_t" + t)
-                    ov.add(new_roi2)
-                    if (!headless_mode) {
-                        rm.addRoi(new_roi2)
-                    }
-                }
-                // println "DONE"
-                // finally add Rois to Overlay if not already present:
-                if (spine_rois_on_fluo.get(t) == null) {
-                    to_omero_ov = addText(to_omero_ov, spine_roi_proj, "A", t, 0, A.F, A.S, quantif_ch)
-                    to_omero_ov = addText(to_omero_ov, spine_roi_proj, "P", t, -1, P.F, P.S, quantif_ch)
-                    spine_roi_proj.setName(spine_roi.getName() + "_on_fluo")
-                    spine_roi_proj.setPosition( quantif_ch, 1, t)
-                    to_omero_ov.add(spine_roi_proj)
-                }
-            }
-            imp.setPosition(quantif_ch, 1, t)
-            println "set overlay"
-            imp.setOverlay(ov)
-            // Measure on each item of the overlay
-            def rt_profil_t = ov.measure(imp)
-            // Debug
-            // println "Columns are:" + rt_profil_t.getColumnHeadings()
-            if (rt_profil_t.getColumnIndex("Group") != ResultsTable.COLUMN_NOT_FOUND) {
-                println "Remove Group column"
-                rt_profil_t.deleteColumn("Group")
-            }
-
-            // Add Date, version and params
-            for ( int row = 0;row<rt_profil_t.size();row++) {
-                rt_profil_t.setValue("Date", row, now)
-                rt_profil_t.setValue("Version", row, tool_version)
-                rt_profil_t.setValue("NPieces", row, n_pieces)
-                rt_profil_t.setValue("Channel", row, quantif_ch)
-                rt_profil_t.setValue("Time", row, t)
-                String label = rt_profil_t.getLabel(row)
-                rt_profil_t.setValue("BaseImage", row, label.split(":")[0])
-                rt_profil_t.setValue("ROI", row, label.split(":")[1])
-                rt_profil_t.setValue("ROI_type", row, label.split(":")[1].split("_t")[0])
-            }
-
-            // Debug
-            // println "Now columns are:" + rt_profil_t.getColumnHeadings()
-
-            println "Store " + ov.size() + " ROIs on OMERO"
-
-            // Save ROIs to omero
-            robustlysaveROIs(image_wpr, user_client, ROIWrapper.fromImageJ(ov as List))
-
-            // Get them back with IDs:
-            ArrayList<Roi> updatedRois = []
-            // println "Now there is"
-            ROIWrapper.toImageJ(robustlyGetROIs(image_wpr, user_client), "ROI").each{
-            	// println it.getName()
-                if ((it.getName() == "WholeGastruloid_t" + t) ||
-                    (it.getName() == "Full_t" + t) ||
-                    (it.getName() == "NonGastruloid_t" + t) ||
-                    (it.getName().startsWith("Segment_") &&
-                     it.getName().endsWith("_t" + t))) {
-                        updatedRois.add(it)
-                }
-            }
-            println "Writting measurements to file"
-            rt_profil_t.save(output_directory.toString() + '/' + image_basename+"__"+t+"_profil_Results.csv" )
-            if (table_wpr == null) {
-                table_wpr = robustlyNewTableWrapper(user_client, rt_profil_t, image_wpr.getId(), updatedRois, "ROI")
-                // add the same infos to the super_table
-                if (super_table == null) {
-                    println "super_table is null"
-                    super_table = robustlyNewTableWrapper(user_client, rt_profil_t, image_wpr.getId(), updatedRois, "ROI")
-                } else {
-                    println "adding rows to super_table"
-                    robustlyAddRows(super_table, user_client, rt_profil_t, image_wpr.getId(), updatedRois, "ROI")
-                }
+            // Project A and P on the ROI:
+            pair projA = new pair()
+            pair projP = new pair()
+            if (closest_seg_start_A != (gastruloid_x.size() - 1)) {
+                projA =  projection(new pair(gastruloid_x[closest_seg_start_A],
+                                                gastruloid_y[closest_seg_start_A]),
+                                    new pair(gastruloid_x[closest_seg_start_A + 1],
+                                                gastruloid_y[closest_seg_start_A + 1]),
+                                    A)
             } else {
-                println "adding rows to table_wpr"
-                robustlyAddRows(table_wpr, user_client, rt_profil_t, image_wpr.getId(), updatedRois, "ROI")
-                println "adding rows to super_table"
-                robustlyAddRows(super_table, user_client, rt_profil_t, image_wpr.getId(), updatedRois, "ROI")
+                projA =  projection(new pair(gastruloid_x[closest_seg_start_A],
+                                                gastruloid_y[closest_seg_start_A]),
+                                    new pair(gastruloid_x[0],
+                                                gastruloid_y[0]),
+                                    A)
+            }
+            if (closest_seg_start_P != (gastruloid_x.size() - 1)) {
+                projP =  projection(new pair(gastruloid_x[closest_seg_start_P],
+                                                gastruloid_y[closest_seg_start_P]),
+                                    new pair(gastruloid_x[closest_seg_start_P + 1],
+                                                gastruloid_y[closest_seg_start_P + 1]),
+                                    P)
+            } else {
+                projP =  projection(new pair(gastruloid_x[closest_seg_start_P],
+                                                gastruloid_y[closest_seg_start_P]),
+                                    new pair(gastruloid_x[0],
+                                                gastruloid_y[0]),
+                                    P)
+            }
+            // println "Projecting A:"
+            // println A.F + "," + A.S
+            // println projA.F + "," + projA.S
+            // println "and P:"
+            // println P.F + "," + P.S
+            // println projP.F + "," + projP.S
+
+            // Create a new ROI with projA and projP
+            spine_xs_proj = [projA.F as float]
+            spine_xs_proj += Arrays.copyOfRange(spine_xs as float[], 1, spine_xs.size() - 1) as List
+            spine_xs_proj.add(projP.F as float)
+            // println spine_xs
+            // println spine_xs_proj
+            spine_ys_proj = [projA.S as float]
+            spine_ys_proj += Arrays.copyOfRange(spine_ys as float[], 1, spine_ys.size() - 1) as List
+            spine_ys_proj.add(projP.S as float)
+            // println spine_ys
+            // println spine_ys_proj
+            spine_roi_proj = new PolygonRoi(spine_xs_proj as float[], spine_ys_proj as float[], spine_xs_proj.size(), Roi.POLYLINE)
+            // println spine_roi_proj
+
+            // Create 2 polylines going from projA to projP using both sides of polygon
+            println "Split gastruloid ROI into 2 lines"
+            // First going increasing:
+            poly1_x = [projA.F]
+            poly1_y = [projA.S]
+            if (closest_seg_start_A + 1 < closest_seg_start_P) {
+                // Just goes from one to the other
+                poly1_x += Arrays.copyOfRange(gastruloid_x as float[], closest_seg_start_A + 1, closest_seg_start_P + 1) as List
+                poly1_y += Arrays.copyOfRange(gastruloid_y as float[], closest_seg_start_A + 1, closest_seg_start_P + 1) as List
+            } else {
+                // Goes from one to the end and from the start to the second one
+                poly1_x += Arrays.copyOfRange(gastruloid_x as float[], closest_seg_start_A + 1, gastruloid_x.size()) as List
+                poly1_x += Arrays.copyOfRange(gastruloid_x as float[], 0, closest_seg_start_P + 1) as List
+                poly1_y += Arrays.copyOfRange(gastruloid_y as float[], closest_seg_start_A + 1, gastruloid_x.size()) as List
+                poly1_y += Arrays.copyOfRange(gastruloid_y as float[], 0, closest_seg_start_P + 1) as List
+            }
+            poly1_x.add(projP.F)
+            poly1_y.add(projP.S)
+            poly1 = new PolygonRoi(poly1_x as float[], poly1_y as float[], poly1_x.size(), Roi.POLYLINE)
+            // Second going decreasing:
+            // Because it is easier we build it P to A
+            // And then revert it:
+            // Building
+            poly2_x = [projP.F]
+            poly2_y = [projP.S]
+            if (closest_seg_start_P + 1 <= closest_seg_start_A) {
+                // Just goes from one to the other
+                poly2_x += Arrays.copyOfRange(gastruloid_x as float[], closest_seg_start_P + 1, closest_seg_start_A + 1) as List
+                poly2_y += Arrays.copyOfRange(gastruloid_y as float[], closest_seg_start_P + 1, closest_seg_start_A + 1) as List
+            } else {
+                // Goes from one to the end and from the start to the second one
+                poly2_x += Arrays.copyOfRange(gastruloid_x as float[], closest_seg_start_P + 1, gastruloid_x.size()) as List
+                poly2_x += Arrays.copyOfRange(gastruloid_x as float[], 0, closest_seg_start_A + 1) as List
+                poly2_y += Arrays.copyOfRange(gastruloid_y as float[], closest_seg_start_P + 1, gastruloid_x.size()) as List
+                poly2_y += Arrays.copyOfRange(gastruloid_y as float[], 0, closest_seg_start_A + 1) as List
+            }
+            poly2_x.add(projA.F)
+            poly2_y.add(projA.S)
+            // Reverting
+            poly2_x = poly2_x.reverse()
+            poly2_y = poly2_y.reverse()
+            poly2 = new PolygonRoi(poly2_x as float[], poly2_y as float[], poly2_x.size(), Roi.POLYLINE)
+
+            // Now I cut into n_pieces pieces the 3 polylines:
+            // println "CUT"
+            cut_spine = getCooPoly(spine_roi_proj, n_pieces)
+            cut_poly1 = getCooPoly(poly1, n_pieces)
+            cut_poly2 = getCooPoly(poly2, n_pieces)
+
+            // For each piece we form the new ROI:
+            for (i = 0 ; i < n_pieces; i++) {
+                // println "Reform " + i
+                roi_x = [cut_spine[0][i][0]] + cut_poly1[0][i]+ [cut_spine[0][i][-1]] + cut_poly2[0][i].reverse()
+                roi_y = [cut_spine[1][i][0]] + cut_poly1[1][i] + [cut_spine[1][i][-1]] + cut_poly2[1][i].reverse()
+                new_roi = new PolygonRoi(roi_x as float[], roi_y as float[], roi_x.size(), Roi.POLYGON)
+                // We restrict the piece to the part which
+                // overlaps the gastruloid
+                new_roi2 = new ShapeRoi(new_roi as Roi).and(new ShapeRoi(gastruloid_roi as Roi))
+                new_roi2.setPosition( quantif_ch, 1, t)
+                new_roi2.setName("Segment_" + i + "_" + id)
+                ov.add(new_roi2)
+                if (!headless_mode) {
+                    rm.addRoi(new_roi2)
+                }
+            }
+            // println "DONE"
+            // finally add Rois to Overlay if not already present:
+            if (spine_rois_on_fluo.get(t) == null) {
+                to_omero_ov = addText(to_omero_ov, spine_roi_proj, "A", t, 0, A.F, A.S, quantif_ch)
+                to_omero_ov = addText(to_omero_ov, spine_roi_proj, "P", t, -1, P.F, P.S, quantif_ch)
+                spine_roi_proj.setName(spine_roi.getName() + "_on_fluo")
+                spine_roi_proj.setPosition( quantif_ch, 1, t)
+                to_omero_ov.add(spine_roi_proj)
             }
         }
+
+        writeResultsFromOv(user_client, imp, quantif_ch, t, ov,
+                           now, tool_version, n_pieces,
+                           gastruloid_roi_ids.get(id), gastruloid_name,
+                           image_wpr, id)
     }
 
     // upload the table on OMERO
@@ -1014,7 +1067,7 @@ def addText( ov, roi, txt, pos, idx, x, y, channel){
 // In simple-omero-client
 // Strings that can be converted to double are stored in double
 // In order to build the super_table, tool_version should stay String
-String tool_version = "Fluo_v20230727"
+String tool_version = "Fluo_v20230809"
 
 // User set variables
 

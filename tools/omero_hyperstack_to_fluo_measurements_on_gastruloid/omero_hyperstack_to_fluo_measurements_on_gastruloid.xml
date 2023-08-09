@@ -1,7 +1,7 @@
 <tool id="omero_hyperstack_to_fluo_measurements_on_gastruloid" name="Omero hyperstack to Fluo measurements" profile="20.01" version="@TOOL_VERSION@+galaxy0">
     <description>on gastruloid</description>
     <macros>
-        <token name="@TOOL_VERSION@">20230727</token>
+        <token name="@TOOL_VERSION@">20230809</token>
     </macros>
     <requirements>
         <requirement type="package" version="20220414">fiji</requirement>
@@ -75,7 +75,7 @@ $password
 **Overview**
 
 This tool must be run after omero_hyperstack_to_gastruloid_measurements.
-It will get images from omero, measure fluorescence on the gastruloids and outside.
+It will get images from omero, measure fluorescence on the gastruloids, on the background and outside.
 It will also cut the gastruloid along the spine into segments and quantify the fluo on each segment.
 
 **License**
