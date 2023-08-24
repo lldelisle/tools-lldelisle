@@ -26,7 +26,7 @@
  * and Lucille Delisle, EPFL - SV - UPDUB
  * and Pierre Osteil, EPFL - SV - UPDUB
  *
- * Last modification: 2023-07-05
+ * Last modification: 2023-08-24
  *
  * = COPYRIGHT =
  * © All rights reserved. ECOLE POLYTECHNIQUE FEDERALE DE LAUSANNE, Switzerland, BioImaging And Optics Platform (BIOP), 2023
@@ -119,7 +119,7 @@ RELATIVE_ACQUISITION_HOUR = "relative_acquisition_hour"
 LETTERS = new String("ABCDEFGHIJKLMNOP")
 
 // Version number = date of last modif
-VERSION = "20230705.1"
+VERSION = "20230824"
 
 /** Key-Value pairs namespace */
 GENERAL_ANNOTATION_NAMESPACE = "openmicroscopy.org/omero/client/mapAnnotation"
@@ -252,8 +252,8 @@ try {
 
 } catch (Throwable e) {
 	println("Something went wrong: " + e)
-    e.printStackTrace()
-    throw e
+	e.printStackTrace()
+	throw e
 
 	if (GraphicsEnvironment.isHeadless()){
 		// Force to give exit signal of error
@@ -718,55 +718,59 @@ def parseIncucyteXML(String path, Boolean ignoreConcentration, Boolean ignorePas
 
 			// extract items node, under well node
 			Node items = ((Element)well).getElementsByTagName(itemsNode).item(0)
-			// get all "wellItem" nodes, under items node
-			NodeList wellItemList = ((Element)items).getElementsByTagName(wellItemNode)
+			if (items != null) {
+				// get all "wellItem" nodes, under items node
+				NodeList wellItemList = ((Element)items).getElementsByTagName(wellItemNode)
 
-			// read referenceItem node's attributes and convert them into key-values
-			List<MapPair> keyValues = new ArrayList<>()
-			for (int j = 0; j < wellItemList.getLength(); j++) {
-				Node wellItem = wellItemList.item(j)
-				// extract referenceItem node, under wellItem node
-				Node referenceItem = ((Element)wellItem).getElementsByTagName(referenceItemNode).item(0)
-				String wellType = wellItem.getAttributes().getNamedItem("type").getTextContent()
+				// read referenceItem node's attributes and convert them into key-values
+				List<MapPair> keyValues = new ArrayList<>()
+				for (int j = 0; j < wellItemList.getLength(); j++) {
+					Node wellItem = wellItemList.item(j)
+					// extract referenceItem node, under wellItem node
+					Node referenceItem = ((Element)wellItem).getElementsByTagName(referenceItemNode).item(0)
+					String wellType = wellItem.getAttributes().getNamedItem("type").getTextContent()
 
-				// select the right key-values
-				switch (wellType){
-					case "Compound":
-						String compound_name = referenceItem.getAttributes().getNamedItem("displayName").getTextContent()
-						if (ignoreConcentration) {
-							keyValues.add(new MapPair(compound_name + " (NA)", "1"))
-						} else {
-							String unit = wellItem.getAttributes().getNamedItem("concentrationUnits").getTextContent()
-							unit = unit.replace("\u00B5", "u")
-							String value = wellItem.getAttributes().getNamedItem("concentration").getTextContent()
-							keyValues.add(new MapPair(compound_name + " (" + unit + ")", value))
-						}
-						break
-					case "CellType":
-						String cell_name = referenceItem.getAttributes().getNamedItem("displayName").getTextContent()
-						if (!ignorePassage) {
-							String passage = wellItem.getAttributes().getNamedItem("passage").getTextContent()
-							keyValues.add(new MapPair(cell_name + "_passage", passage))
-						}
-						if (ignoreSeeding) {
-							keyValues.add(new MapPair(cell_name, "yes"))
-						} else {
-							String unit = wellItem.getAttributes().getNamedItem("seedingDensityUnits").getTextContent()
-							unit = unit.replace("\u00B5", "u")
-							String value = wellItem.getAttributes().getNamedItem("seedingDensity").getTextContent()
-							keyValues.add(new MapPair(cell_name + "_seedingDensity (" + unit + ")", value))
-						}
-						break
-					case "GrowthCondition":
-						String growth_condition = referenceItem.getAttributes().getNamedItem("displayName").getTextContent()
-						keyValues.add(new MapPair(growth_condition, "yes"))
-						break
+					// select the right key-values
+					switch (wellType){
+						case "Compound":
+							String compound_name = referenceItem.getAttributes().getNamedItem("displayName").getTextContent()
+							if (ignoreConcentration) {
+								keyValues.add(new MapPair(compound_name + " (NA)", "1"))
+							} else {
+								String unit = wellItem.getAttributes().getNamedItem("concentrationUnits").getTextContent()
+								unit = unit.replace("\u00B5", "u")
+								String value = wellItem.getAttributes().getNamedItem("concentration").getTextContent()
+								keyValues.add(new MapPair(compound_name + " (" + unit + ")", value))
+							}
+							break
+						case "CellType":
+							String cell_name = referenceItem.getAttributes().getNamedItem("displayName").getTextContent()
+							if (!ignorePassage) {
+								String passage = wellItem.getAttributes().getNamedItem("passage").getTextContent()
+								keyValues.add(new MapPair(cell_name + "_passage", passage))
+							}
+							if (ignoreSeeding) {
+								keyValues.add(new MapPair(cell_name, "yes"))
+							} else {
+								String unit = wellItem.getAttributes().getNamedItem("seedingDensityUnits").getTextContent()
+								unit = unit.replace("\u00B5", "u")
+								String value = wellItem.getAttributes().getNamedItem("seedingDensity").getTextContent()
+								keyValues.add(new MapPair(cell_name + "_seedingDensity (" + unit + ")", value))
+							}
+							break
+						case "GrowthCondition":
+							String growth_condition = referenceItem.getAttributes().getNamedItem("displayName").getTextContent()
+							keyValues.add(new MapPair(growth_condition, "yes"))
+							break
+					}
 				}
+				keyValuesPerWell.put(wellNumber,keyValues)
+
 			}
-			keyValuesPerWell.put(wellNumber,keyValues)
 		}
 		return keyValuesPerWell
 	} catch (Exception e) {
+		println "XML platemap could not be parsed"
 		e.printStackTrace()
 		return new HashMap<>()
 	}
