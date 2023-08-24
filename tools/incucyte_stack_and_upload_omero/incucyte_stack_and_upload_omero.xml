@@ -1,7 +1,7 @@
 <tool id="incucyte_stack_and_upload_omero" name="Stack Incucyte Plate" version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@" profile="20.01" license="BSD-3">
     <description>And upload to omero</description>
     <macros>
-        <token name="@TOOL_VERSION@">20230705.1</token>
+        <token name="@TOOL_VERSION@">20230824</token>
         <token name="@VERSION_SUFFIX@">0</token>
     </macros>
     <requirements>
@@ -23,6 +23,7 @@
             #end if
             #set $incucyteXMLFile = str($upload_omero.incucyteXMLFile)
             #set $objectiveChoice = str($upload_omero.objectiveChoice)
+            #set $startStage = str($upload_omero.startStage)
             #set $plateName = str($upload_omero.plateName)
             #set $ignoreConcentration = str($upload_omero.ignoreConcentration)
             #set $ignorePassage = str($upload_omero.ignorePassage)
@@ -30,6 +31,7 @@
         #else
             #set $incucyteXMLFile = "inexisting.plateMap"
             #set $objectiveChoice = "4x"
+            #set $startStage = "72"
             #set $plateName = "Experiment:0"
             #set $ignoreConcentration = "true"
             #set $ignorePassage = "true"
@@ -92,7 +94,7 @@
         #end if
         ## Run the groovy
         ImageJ --ij2 --headless --console --run '$__tool_directory__/'stack_buildXml.groovy 
-            'base_dir="input/",output_dir="output/",incucyteXMLFile="$incucyteXMLFile",objectiveChoice="$objectiveChoice",nWells="${nWells}",n_images_per_well="${n_images_per_well}",plateName="$plateName",commonKeyValues="original_file=${original_file}",xmlName="$plateName",ignoreConcentration="$ignoreConcentration",ignorePassage="$ignorePassage",ignoreSeeding="$ignoreSeeding"' > output.log
+            'base_dir="input/",output_dir="output/",incucyteXMLFile="$incucyteXMLFile",objectiveChoice="$objectiveChoice",nWells="${nWells}",n_images_per_well="${n_images_per_well}",plateName="$plateName",commonKeyValues="original_file=${original_file};start_stage=$startStage",xmlName="$plateName",ignoreConcentration="$ignoreConcentration",ignorePassage="$ignorePassage",ignoreSeeding="$ignoreSeeding"' > output.log
         ## Upload to omero
         #if str($upload_omero.upload_omero_select) == "yes":
             && bash '$__tool_directory__/'upload_omero.sh '$upload_omero.omero_host' '$credentials' '$upload_omero.screen.screen_create' '$upload_omero.screen.screenNameOrID' >> output.log
@@ -144,6 +146,7 @@ $password
                     <option value="10x">10x</option>
                     <option value="20x">20x</option>
                 </param>
+                <param name="startStage" type="integer" min="0" value="72" label="Stage in hour at first acquisition"/>
                 <param name="omero_host" type="text" label="OMERO host URL">
                     <validator type="regex" message="Enter a valid host location, for example, your.omero.server">^[a-zA-Z0-9._-]*$</validator>
                     <validator type="expression" message="No two dots (..) allowed">'..' not in value</validator>
@@ -268,7 +271,7 @@ License text::
     and Lucille Delisle, EPFL - SV - UPDUB
     and Pierre Osteil, EPFL - SV - UPDUB
     
-    Last modification: 2023-07-05
+    Last modification: 2023-08-24
     
     = COPYRIGHT =
     © All rights reserved. ECOLE POLYTECHNIQUE FEDERALE DE LAUSANNE, Switzerland, BioImaging And Optics Platform (BIOP), 2023
