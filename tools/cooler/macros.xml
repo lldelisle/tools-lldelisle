@@ -2,8 +2,8 @@
   <token name="@VERSION@">0.9.2</token>
   <xml name="requirements">
     <requirements>
-      <requirement type="package" version="1.16">htslib</requirement>
-      <requirement type="package" version="3.7.0">h5py</requirement>
+      <requirement type="package" version="1.18">htslib</requirement>
+      <requirement type="package" version="3.9.0">h5py</requirement>
       <requirement type="package" version="@VERSION@">cooler</requirement>
     </requirements>
   </xml>
