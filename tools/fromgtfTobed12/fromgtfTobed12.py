@@ -24,12 +24,16 @@ warnings.filterwarnings("ignore", message="It appears you have a transcript "
 
 
 def convert_gtf_to_bed(fn, fo, useGene, mergeTranscripts,
-                       mergeTranscriptsAndOverlappingExons, ucsc):
+                       mergeTranscriptsAndOverlappingExons, ucsc,
+                       preferedName):
     db = gffutils.create_db(fn, ':memory:')
     # For each transcript:
-    prefered_name = "transcript_name"
-    if useGene or mergeTranscripts or mergeTranscriptsAndOverlappingExons:
-        prefered_name = "gene_name"
+    if preferedName is not None:
+        prefered_name = preferedName
+    else:
+        prefered_name = "transcript_name"
+        if useGene or mergeTranscripts or mergeTranscriptsAndOverlappingExons:
+            prefered_name = "gene_name"
     if mergeTranscripts or mergeTranscriptsAndOverlappingExons:
         all_items = db.features_of_type("gene", order_by='start')
     else:
@@ -133,6 +137,8 @@ argp.add_argument('--useGene', action="store_true",
 argp.add_argument('--ucscformat', action="store_true",
                   help="If you want that all chromosome names "
                        "begin with 'chr'.")
+argp.add_argument('--preferedName', default=None,
+                  help="Name to use for bed output.")
 group = argp.add_mutually_exclusive_group()
 group.add_argument('--mergeTranscripts', action="store_true",
                    help="Merge all transcripts into a single "
@@ -147,4 +153,4 @@ args = argp.parse_args()
 convert_gtf_to_bed(args.input, args.output, args.useGene,
                    args.mergeTranscripts,
                    args.mergeTranscriptsAndOverlappingExons,
-                   args.ucscformat)
+                   args.ucscformat, args.preferedName)
