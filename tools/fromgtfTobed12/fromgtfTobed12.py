@@ -23,13 +23,16 @@ warnings.filterwarnings("ignore", message="It appears you have a transcript "
                         "database creation")
 
 
-def convert_gtf_to_bed(fn, fo, useGene, mergeTranscripts,
+def convert_gtf_to_bed(fn, fo, preferedName, mergeTranscripts,
                        mergeTranscriptsAndOverlappingExons, ucsc):
     db = gffutils.create_db(fn, ':memory:')
     # For each transcript:
-    prefered_name = "transcript_name"
-    if useGene or mergeTranscripts or mergeTranscriptsAndOverlappingExons:
+    if preferedName is not None:
+        prefered_name = preferedName
+    elif mergeTranscripts or mergeTranscriptsAndOverlappingExons:
         prefered_name = "gene_name"
+    else:
+        prefered_name = "transcript_name"
     if mergeTranscripts or mergeTranscriptsAndOverlappingExons:
         all_items = db.features_of_type("gene", order_by='start')
     else:
@@ -127,12 +130,11 @@ argp.add_argument('input', default=None,
 argp.add_argument('--output', default=sys.stdout,
                   type=argparse.FileType('w'),
                   help="Output bed12 file.")
-argp.add_argument('--useGene', action="store_true",
-                  help="Use the gene name instead of the "
-                       "transcript name.")
 argp.add_argument('--ucscformat', action="store_true",
                   help="If you want that all chromosome names "
                        "begin with 'chr'.")
+argp.add_argument('--preferedName', default=None,
+                  help="Name to use for bed output.")
 group = argp.add_mutually_exclusive_group()
 group.add_argument('--mergeTranscripts', action="store_true",
                    help="Merge all transcripts into a single "
@@ -144,7 +146,7 @@ group.add_argument('--mergeTranscriptsAndOverlappingExons',
                         " overlapping exons.")
 
 args = argp.parse_args()
-convert_gtf_to_bed(args.input, args.output, args.useGene,
+convert_gtf_to_bed(args.input, args.output, args.preferedName,
                    args.mergeTranscripts,
                    args.mergeTranscriptsAndOverlappingExons,
                    args.ucscformat)
