@@ -33,7 +33,6 @@ def convert_gtf_to_bed(fn, fo, preferedName, mergeTranscripts,
         prefered_name = "gene_name"
     else:
         prefered_name = "transcript_name"
-        
     if mergeTranscripts or mergeTranscriptsAndOverlappingExons:
         all_items = db.features_of_type("gene", order_by='start')
     else:
