@@ -338,7 +338,7 @@ def process_well(baseDir, input_wellId, n_image_per_well){ //, perform_bc, media
 						}
 						if (dateTime_ref != null) {
 							first_acq_date = dateTime_ref.format(DateTimeFormatter.ofPattern("yyyy-MM-dd"))
-							first_acq_time = dateTime_ref.format(DateTimeFormatter.ofPattern("HH:MM:SS"))
+							first_acq_time = dateTime_ref.format(DateTimeFormatter.ofPattern("HH:mm:ss"))
 							for (int ti = 2; ti<= nT; ti++) {
 								// Process each frame starting at 2
 								single_channel_imp.setSlice(ti)
