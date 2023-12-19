@@ -26,7 +26,7 @@
  * and Lucille Delisle, EPFL - SV - UPDUB
  * and Pierre Osteil, EPFL - SV - UPDUB
  *
- * Last modification: 2023-08-24
+ * Last modification: 2023-12-19
  *
  * = COPYRIGHT =
  * © All rights reserved. ECOLE POLYTECHNIQUE FEDERALE DE LAUSANNE, Switzerland, BioImaging And Optics Platform (BIOP), 2023
@@ -69,7 +69,8 @@
  *  1. Create a parent folder (base_dir) and a output folder (output_dir)
  *  2. Create a dir *Phase, *Green, *Red with the corresponding channels
  *  3. The image names must contains a prefix followed by '_', the name of the well (no 0-pad) followed by '_', followed by the field id followed by '_', the date of the acquisition in YYYYyMMmDDdHHhMMm and the extension '.tif'
- *  4. You must provide the path of the Incucyte XML file to populate key values
+ *  4. The images can be either regular tif or the raw tif from Incucyte which contains multiple series.
+ *  5. You must provide the path of the Incucyte XML file to populate key values
  *
  * The expected outputs are:
  *  1. In the output_dir one tiff per well/field (multi-T and potentially multi-C)
@@ -119,7 +120,7 @@ RELATIVE_ACQUISITION_HOUR = "relative_acquisition_hour"
 LETTERS = new String("ABCDEFGHIJKLMNOP")
 
 // Version number = date of last modif
-VERSION = "20230824"
+VERSION = "20231219"
 
 /** Key-Value pairs namespace */
 GENERAL_ANNOTATION_NAMESPACE = "openmicroscopy.org/omero/client/mapAnnotation"
@@ -311,10 +312,31 @@ def process_well(baseDir, input_wellId, n_image_per_well){ //, perform_bc, media
 		FileFilter fileFilter = new WildcardFileFilter("*_" + input_wellId + "_" + wellSampleId + "_*")
 		for(int i = 0; i < folder_list.size(); i++){
 			if (folder_list.get(i) != null) {
-				File[] files_matching = folder_list.get(i).listFiles(fileFilter as FileFilter)
+				File[] files_matching = folder_list.get(i).listFiles(fileFilter as FileFilter).sort()
 				if (files_matching.size() != 0) {
-					// open the image
-					ImagePlus single_channel_imp = FolderOpener.open(folder_list.get(i).getAbsolutePath(), " filter=_"+ input_wellId + "_"+wellSampleId+"_")
+					// In order to deal with raw images from Incucyte which are
+					// Multi series images
+					// We open the first image
+					ImagePlus first_imp = Opener.openUsingBioFormats(files_matching[0].getAbsolutePath())
+					// We check if we can read the infos
+					first_image_infos = Opener.getTiffFileInfo(files_matching[0].getAbsolutePath())
+					// We define the imageplus object
+					ImagePlus single_channel_imp
+					if (first_image_infos == null) {
+						// They are raw from incucyte
+						// We need to open images one by one and add them to the stack
+						ImageStack stack = new ImageStack(first_imp.width, first_imp.height);
+						files_matching.each{
+							ImagePlus single_imp = (new Opener()).openUsingBioFormats(it.getAbsolutePath())
+							String new_title = single_imp.getTitle().split(" - ")[0]
+							stack.addSlice(new_title, single_imp.getProcessor())		
+						}
+						single_channel_imp = new ImagePlus(FilenameUtils.getBaseName(folder_list.get(i).getAbsolutePath()), stack);
+					} else {
+						// They are regular tif file
+						// We can use FolderOpener to create the stack at once
+						single_channel_imp = FolderOpener.open(folder_list.get(i).getAbsolutePath(), " filter=_"+ input_wellId + "_"+wellSampleId+"_")
+					}
 					// Phase are 8-bit and need to be changed to 16-bit
 					// Other are already 16-bit but it does not hurt
 					IJ.run(single_channel_imp, "16-bit", "")
@@ -822,6 +844,7 @@ def convertLetterToNumber(String letter){
 
 // Returns a date from a label and a date_pattern
 def getDate(String label, Pattern date_pattern){
+//	println "Trying to get date from " + label
 	Matcher date_m = date_pattern.matcher(label)
 	LocalDateTime dateTime
 	if (date_m.matches()) {
@@ -831,6 +854,7 @@ def getDate(String label, Pattern date_pattern){
 			dateTime = LocalDateTime.parse("1970-01-" + 1 + (date_m.group(1) as int) + "T" + date_m.group(2) + ":" + date_m.group(3))
 		}
 	}
+//	println "Found " + dateTime
 	return dateTime
 }
 
@@ -858,6 +882,7 @@ import ij.IJ
 import ij.ImagePlus
 import ij.ImageStack
 import ij.io.FileSaver
+import ij.io.Opener
 import ij.plugin.Concatenator
 import ij.plugin.FolderOpener
 import ij.plugin.HyperStackConverter
@@ -907,6 +932,7 @@ import ome.xml.model.primitives.PositiveInteger
 import ome.xml.model.primitives.Timestamp
 
 import org.apache.commons.io.filefilter.WildcardFileFilter
+import org.apache.commons.io.FilenameUtils
 
 import org.w3c.dom.Document
 import org.w3c.dom.Element
