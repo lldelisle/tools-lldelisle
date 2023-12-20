@@ -3,9 +3,9 @@
 // Lucille Delisle modified to support headless
 // And to be more robust to OMERO reboot
 // merge the analysis script with templates available at
-// https://github.com/BIOP/OMERO-scripts/tree/main/Fiji
+// https://github.com/BIOP/OMERO-scripts/tree/025047955b5c1265e1a93b259c1de4600d00f107/Fiji
 
-// Last modification: 2023-07-28
+// Last modification: 2023-12-20
 
 /*
  * = COPYRIGHT =
@@ -29,7 +29,8 @@
  * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
 
-// This macro will use ilastik to detect ROIs
+// This macro will use ilastik or convert to mask
+// to detect ROIs
 // measure and compute elongation index
 // It may also regenerate a ROI of background
 
@@ -88,6 +89,7 @@ import ij.plugin.Duplicator
 import ij.plugin.frame.RoiManager
 import ij.plugin.HyperStackConverter
 import ij.plugin.ImageCalculator
+import ij.plugin.Thresholder
 import ij.Prefs
 import ij.process.FloatPolygon
 import ij.process.ImageProcessor
@@ -402,7 +404,7 @@ def processDataset(Client user_client, DatasetWrapper dataset_wrp,
                    Boolean headless_mode, Boolean debug, String tool_version,
                    Boolean use_existing, String final_object, Boolean rescue,
                    Integer ilastik_label_BG, Double probability_threshold_BG,
-                   Boolean keep_only_largest) {
+                   Boolean keep_only_largest, String segmentation_method) {
     robustlyGetAll(dataset_wrp, "image", user_client).each{ ImageWrapper img_wrp ->
         processImage(user_client, img_wrp,
                      ilastik_project, ilastik_project_type,
@@ -414,7 +416,7 @@ def processDataset(Client user_client, DatasetWrapper dataset_wrp,
                      headless_mode, debug, tool_version,
                      use_existing, final_object, rescue,
                      ilastik_label_BG, probability_threshold_BG,
-                     keep_only_largest)
+                     keep_only_largest, segmentation_method)
     }
 }
 
@@ -429,7 +431,7 @@ def processSinglePlate(Client user_client, PlateWrapper plate_wrp,
                        Boolean headless_mode, Boolean debug, String tool_version, Boolean use_existing,
                        String final_object, Boolean rescue,
                        Integer ilastik_label_BG, Double probability_threshold_BG,
-                       Boolean keep_only_largest) {
+                       Boolean keep_only_largest, String segmentation_method) {
     robustlyGetAll(plate_wrp, "well", user_client).each{ well_wrp ->
         processSingleWell(user_client, well_wrp,
                      ilastik_project, ilastik_project_type,
@@ -441,7 +443,7 @@ def processSinglePlate(Client user_client, PlateWrapper plate_wrp,
                      headless_mode, debug, tool_version,
                      use_existing, final_object, rescue,
                      ilastik_label_BG, probability_threshold_BG,
-                     keep_only_largest)
+                     keep_only_largest, segmentation_method)
     }
 }
 
@@ -456,7 +458,7 @@ def processSingleWell(Client user_client, WellWrapper well_wrp,
                       Boolean headless_mode, Boolean debug, String tool_version, Boolean use_existing,
                       String final_object, Boolean rescue,
                       Integer ilastik_label_BG, Double probability_threshold_BG,
-                      Boolean keep_only_largest) {
+                      Boolean keep_only_largest, String segmentation_method) {
     well_wrp.getWellSamples().each{
         processImage(user_client, it.getImage(),
                      ilastik_project, ilastik_project_type,
@@ -468,7 +470,7 @@ def processSingleWell(Client user_client, WellWrapper well_wrp,
                      headless_mode, debug, tool_version,
                      use_existing, final_object, rescue,
                      ilastik_label_BG, probability_threshold_BG,
-                     keep_only_largest)
+                     keep_only_largest, segmentation_method)
     }
 }
 
@@ -483,7 +485,7 @@ def processImage(Client user_client, ImageWrapper image_wrp,
                  Boolean headless_mode, Boolean debug, String tool_version,
                  Boolean use_existing, String final_object, Boolean rescue,
                  Integer ilastik_label_BG, Double probability_threshold_BG,
-                 Boolean keep_only_largest) {
+                 Boolean keep_only_largest, String segmentation_method) {
 
     IJ.run("Close All", "")
     IJ.run("Clear Results")
@@ -596,96 +598,105 @@ def processImage(Client user_client, ImageWrapper image_wrp,
     }
     if (!use_existing) {
         // We compute the segmentation
-        File output_path = new File (output_directory, image_basename+"_ilastik_" + ilastik_project_short_name + "_output.tif" )
-        ImagePlus predictions_imp
-        FileSaver fs
-        if(output_path.exists()) {
-            println "USING EXISTING ILASTIK OUTPUT"
-            predictions_imp = IJ.openImage( output_path.toString() )
-        } else {
-            /**
-            *  ilastik
-            */
-            println "Starting ilastik"
-
-            // get ilastik predictions for each time point of the Time-lapse but all at the same time
-            ImagePlus ilastik_input_original = new Duplicator().run(imp, ilastik_input_ch, ilastik_input_ch, 1, 1, 1, nT);
-
-            ImagePlus gb_imp = ilastik_input_original.duplicate()
-            IJ.run(gb_imp, "Gaussian Blur...", "sigma=100 stack")
-            ImagePlus ilastik_input = ImageCalculator.run(ilastik_input_original, gb_imp, "Divide create 32-bit stack")
-            if (!headless_mode) {ilastik_input.show()}
-            // can't work without displaying image
-            // IJ.run("Run Pixel Classification Prediction", "projectfilename="+ilastik_project+" inputimage="+ilastik_input.getTitle()+" pixelclassificationtype=Probabilities");
-            //
-            // to use in headless_mode more we need to use a commandservice
-            def predictions_imgPlus
-            if (ilastik_project_type == "Regular") {
-                predictions_imgPlus = cmds.run( IlastikPixelClassificationCommand.class, false,
-                                                'inputImage', ilastik_input,
-                                                'projectFileName', ilastik_project,
-                                                'pixelClassificationType', "Probabilities").get().getOutput("predictions")
+        if (segmentation_method == "ilastik") {
+            File output_path = new File (output_directory, image_basename+"_ilastik_" + ilastik_project_short_name + "_output.tif" )
+            ImagePlus predictions_imp
+            FileSaver fs
+            if(output_path.exists()) {
+                println "USING EXISTING ILASTIK OUTPUT"
+                predictions_imp = IJ.openImage( output_path.toString() )
             } else {
-                predictions_imgPlus = cmds.run( IlastikAutoContextCommand.class, false,
-                                                'inputImage', ilastik_input,
-                                                'projectFileName', ilastik_project,
-                                                'AutocontextPredictionType', "Probabilities").get().getOutput("predictions")
-            }
-            // to convert the result to ImagePlus : https://gist.github.com/GenevieveBuckley/460d0abc7c1b13eee983187b955330ba
-            predictions_imp = ImageJFunctions.wrap(predictions_imgPlus, "predictions")
+                /**
+                *  ilastik
+                */
+                println "Starting ilastik"
 
-            predictions_imp.setTitle("ilastik_output")
+                // get ilastik predictions for each time point of the Time-lapse but all at the same time
+                ImagePlus ilastik_input_original = new Duplicator().run(imp, ilastik_input_ch, ilastik_input_ch, 1, 1, 1, nT);
 
-            // save file
-            fs = new FileSaver(predictions_imp)
-            fs.saveAsTiff(output_path.toString() )
-        }
-        if (!headless_mode) {  predictions_imp.show()   }
-
-        /**
-        * From the "ilastik predictions of the Time-lapse" do segmentation and cleaning
-        */
-
-        // Get a stack of ROI for background:
-        if (ilastik_label_BG != 0) {
-            ImagePlus mask_imp_BG = new Duplicator().run(predictions_imp, ilastik_label_BG, ilastik_label_BG, 1, 1, 1, nT)
-            // Apply threshold:
-            IJ.setThreshold(mask_imp_BG, probability_threshold_BG, 100.0000)
-            Prefs.blackBackground = true
-            IJ.run(mask_imp_BG, "Convert to Mask", "method=Default background=Dark black")
-            if (!headless_mode) {  mask_imp_BG.show() }
-            IJ.run(mask_imp_BG, "Analyze Particles...", "stack show=Overlay")
-            Overlay ov_BG = mask_imp_BG.getOverlay()
-            Overlay ov_BG_Combined = new Overlay()
-            for (int t=1;t<=nT;t++) {
-                // Don't ask me why we need to refer to Z pos and not T/Frame
-                ArrayList<Roi> all_rois_inT = ov_BG.findAll{ roi -> roi.getZPosition() == t}
-                println "There are " + all_rois_inT.size() + " in time " + t
-                if (all_rois_inT.size() > 0) {
-                    ShapeRoi current_roi = new ShapeRoi(all_rois_inT[0] as Roi)
-                    for (i = 1; i < all_rois_inT.size(); i++) {
-                        current_roi = current_roi.or(new ShapeRoi(all_rois_inT[i] as Roi))
-                    }
-                    // Update the position before adding to the ov_BG_Combined
-                    current_roi.setPosition( ilastik_input_ch, 1, t)
-                    current_roi.setName("Background_t" + t)
-                    ov_BG_Combined.add(current_roi)
+                ImagePlus gb_imp = ilastik_input_original.duplicate()
+                IJ.run(gb_imp, "Gaussian Blur...", "sigma=100 stack")
+                ImagePlus ilastik_input = ImageCalculator.run(ilastik_input_original, gb_imp, "Divide create 32-bit stack")
+                if (!headless_mode) {ilastik_input.show()}
+                // can't work without displaying image
+                // IJ.run("Run Pixel Classification Prediction", "projectfilename="+ilastik_project+" inputimage="+ilastik_input.getTitle()+" pixelclassificationtype=Probabilities");
+                //
+                // to use in headless_mode more we need to use a commandservice
+                def predictions_imgPlus
+                if (ilastik_project_type == "Regular") {
+                    predictions_imgPlus = cmds.run( IlastikPixelClassificationCommand.class, false,
+                                                    'inputImage', ilastik_input,
+                                                    'projectFileName', ilastik_project,
+                                                    'pixelClassificationType', "Probabilities").get().getOutput("predictions")
+                } else {
+                    predictions_imgPlus = cmds.run( IlastikAutoContextCommand.class, false,
+                                                    'inputImage', ilastik_input,
+                                                    'projectFileName', ilastik_project,
+                                                    'AutocontextPredictionType', "Probabilities").get().getOutput("predictions")
                 }
-            }
-            IJ.run("Clear Results")
-            println "Store " + ov_BG_Combined.size() + " BG ROIs on OMERO"
-            // Save ROIs to omero
-            robustlysaveROIs(image_wrp, user_client, ROIWrapper.fromImageJ(ov_BG_Combined as List))
-        }
+                // to convert the result to ImagePlus : https://gist.github.com/GenevieveBuckley/460d0abc7c1b13eee983187b955330ba
+                predictions_imp = ImageJFunctions.wrap(predictions_imgPlus, "predictions")
 
-        // Get only the channel for the gastruloid/background prediction
-        mask_imp = new Duplicator().run(predictions_imp, ilastik_label_OI, ilastik_label_OI, 1, 1, 1, nT);
+                predictions_imp.setTitle("ilastik_output")
+
+                // save file
+                fs = new FileSaver(predictions_imp)
+                fs.saveAsTiff(output_path.toString() )
+            }
+            if (!headless_mode) {  predictions_imp.show()   }
+
+            /**
+            * From the "ilastik predictions of the Time-lapse" do segmentation and cleaning
+            */
+
+            // Get a stack of ROI for background:
+            if (ilastik_label_BG != 0) {
+                ImagePlus mask_imp_BG = new Duplicator().run(predictions_imp, ilastik_label_BG, ilastik_label_BG, 1, 1, 1, nT)
+                // Apply threshold:
+                IJ.setThreshold(mask_imp_BG, probability_threshold_BG, 100.0000)
+                Prefs.blackBackground = true
+                IJ.run(mask_imp_BG, "Convert to Mask", "method=Default background=Dark black")
+                if (!headless_mode) {  mask_imp_BG.show() }
+                IJ.run(mask_imp_BG, "Analyze Particles...", "stack show=Overlay")
+                Overlay ov_BG = mask_imp_BG.getOverlay()
+                Overlay ov_BG_Combined = new Overlay()
+                for (int t=1;t<=nT;t++) {
+                    // Don't ask me why we need to refer to Z pos and not T/Frame
+                    ArrayList<Roi> all_rois_inT = ov_BG.findAll{ roi -> roi.getZPosition() == t}
+                    println "There are " + all_rois_inT.size() + " in time " + t
+                    if (all_rois_inT.size() > 0) {
+                        ShapeRoi current_roi = new ShapeRoi(all_rois_inT[0] as Roi)
+                        for (i = 1; i < all_rois_inT.size(); i++) {
+                            current_roi = current_roi.or(new ShapeRoi(all_rois_inT[i] as Roi))
+                        }
+                        // Update the position before adding to the ov_BG_Combined
+                        current_roi.setPosition( ilastik_input_ch, 1, t)
+                        current_roi.setName("Background_t" + t)
+                        ov_BG_Combined.add(current_roi)
+                    }
+                }
+                IJ.run("Clear Results")
+                println "Store " + ov_BG_Combined.size() + " BG ROIs on OMERO"
+                // Save ROIs to omero
+                robustlysaveROIs(image_wrp, user_client, ROIWrapper.fromImageJ(ov_BG_Combined as List))
+            }
+
+            // Get only the channel for the gastruloid/background prediction
+            mask_imp = new Duplicator().run(predictions_imp, ilastik_label_OI, ilastik_label_OI, 1, 1, 1, nT);
+
+            // Apply threshold:
+            IJ.setThreshold(mask_imp, probability_threshold, 100.0000);
+            Prefs.blackBackground = true;
+            IJ.run(mask_imp, "Convert to Mask", "method=Default background=Dark black");
+
+        } else {
+            // Get only the channel with bright field
+            mask_imp = new Duplicator().run(imp, ilastik_input_ch, ilastik_input_ch, 1, 1, 1, nT);
+            // Run convert to mask
+            (new Thresholder()).convertStackToBinary(mask_imp);
+        }
         // This title will appear in the result table
         mask_imp.setTitle(image_basename)
-        // Apply threshold:
-        IJ.setThreshold(mask_imp, probability_threshold, 100.0000);
-        Prefs.blackBackground = true;
-        IJ.run(mask_imp, "Convert to Mask", "method=Default background=Dark black");
         if (!headless_mode) {  mask_imp.show() }
 
         // clean the mask a bit
@@ -775,8 +786,13 @@ def processImage(Client user_client, ImageWrapper image_wrp,
             rt.setValue("Unit", row, scale_unit)
             rt.setValue("Date", row, now)
             rt.setValue("Version", row, tool_version)
-            rt.setValue("IlastikProject", row, ilastik_project_short_name)
-            rt.setValue("ProbabilityThreshold", row, probability_threshold)
+            if (segmentation_method == "ilastik") {
+                rt.setValue("IlastikProject", row, ilastik_project_short_name)
+                rt.setValue("ProbabilityThreshold", row, probability_threshold)
+            } else {
+                rt.setValue("IlastikProject", row, "NA")
+                rt.setValue("ProbabilityThreshold", row, "NA")
+            }
             rt.setValue("MinSizeParticle", row, min_size_particle)
             rt.setValue("MinDiameter", row, minimum_diameter)
             rt.setValue("ClosenessTolerance", row, closeness_tolerance)
@@ -1080,7 +1096,7 @@ def processImage(Client user_client, ImageWrapper image_wrp,
 // In simple-omero-client
 // Strings that can be converted to double are stored in double
 // In order to build the super_table, tool_version should stay String
-String tool_version = "Phase_v20230728"
+String tool_version = "White_v20231220"
 
 // User set variables
 
@@ -1095,6 +1111,7 @@ String tool_version = "Phase_v20230728"
 
 #@ String(visibility=MESSAGE, value="Parameters for segmentation/ROI", required=false) msg2
 #@ Boolean(label="Use existing segmentation (values below in the section will be ignored)") use_existing
+#@ String(label="Segmentation Method", choices={"convert_to_mask","ilastik"}) segmentation_method
 #@ Boolean(label="<html>Run in rescue mode<br/>(only segment images without tables)</html>", value=false) rescue
 #@ File(label="Ilastik project") ilastik_project
 #@ String(label="Ilastik project short name") ilastik_project_short_name
@@ -1206,7 +1223,7 @@ if (user_client.isConnected()) {
                     headless_mode, debug, tool_version,
                     use_existing, "image", rescue,
                     ilastik_label_BG, probability_threshold_BG,
-                    keep_only_largest)
+                    keep_only_largest, segmentation_method)
                 break
             case "dataset":
                 DatasetWrapper dataset_wrp = robustlyGetOne(id, "dataset", user_client)
@@ -1233,7 +1250,7 @@ if (user_client.isConnected()) {
                      headless_mode, debug, tool_version,
                      use_existing, "dataset", rescue,
                      ilastik_label_BG, probability_threshold_BG,
-                     keep_only_largest)
+                     keep_only_largest, segmentation_method)
                 // upload the table on OMERO
                 super_table.setName(table_name + "_global")
                 robustlyAddAndReplaceTable(dataset_wrp, user_client, super_table)
@@ -1263,7 +1280,7 @@ if (user_client.isConnected()) {
                      headless_mode, debug, tool_version,
                      use_existing, "well", rescue,
                      ilastik_label_BG, probability_threshold_BG,
-                     keep_only_largest)
+                     keep_only_largest, segmentation_method)
                 // upload the table on OMERO
                 super_table.setName(table_name + "_global")
                 robustlyAddAndReplaceTable(well_wrp, user_client, super_table)
@@ -1293,7 +1310,7 @@ if (user_client.isConnected()) {
                      headless_mode, debug, tool_version,
                      use_existing, "plate", rescue,
                      ilastik_label_BG, probability_threshold_BG,
-                     keep_only_largest)
+                     keep_only_largest, segmentation_method)
                 // upload the table on OMERO
                 super_table.setName(table_name + "_global")
                 robustlyAddAndReplaceTable(plate_wrp, user_client, super_table)

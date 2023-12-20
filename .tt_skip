@@ -1,6 +1,4 @@
 tools/measure_gastruloids
-tools/incucyte_stack_and_upload_omero/
 tools/hyperstack_to_bleach_corrected_movie
 tools/omero_hyperstack_to_fluo_measurements_on_gastruloid
-tools/omero_hyperstack_to_gastruloid_measurements
 tools/omero_clean_rois_tables
