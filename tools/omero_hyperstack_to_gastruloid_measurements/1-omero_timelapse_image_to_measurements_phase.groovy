@@ -3,7 +3,7 @@
 // Lucille Delisle modified to support headless
 // And to be more robust to OMERO reboot
 // merge the analysis script with templates available at
-// https://github.com/BIOP/OMERO-scripts/tree/main/Fiji
+// https://github.com/BIOP/OMERO-scripts/tree/025047955b5c1265e1a93b259c1de4600d00f107/Fiji
 
 // Last modification: 2023-12-20
 
