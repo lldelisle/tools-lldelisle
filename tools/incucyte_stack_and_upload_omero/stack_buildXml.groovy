@@ -26,7 +26,7 @@
  * and Lucille Delisle, EPFL - SV - UPDUB
  * and Pierre Osteil, EPFL - SV - UPDUB
  *
- * Last modification: 2023-12-19
+ * Last modification: 2023-12-21
  *
  * = COPYRIGHT =
  * © All rights reserved. ECOLE POLYTECHNIQUE FEDERALE DE LAUSANNE, Switzerland, BioImaging And Optics Platform (BIOP), 2023
@@ -120,7 +120,7 @@ RELATIVE_ACQUISITION_HOUR = "relative_acquisition_hour"
 LETTERS = new String("ABCDEFGHIJKLMNOP")
 
 // Version number = date of last modif
-VERSION = "20231219"
+VERSION = "20231221"
 
 /** Key-Value pairs namespace */
 GENERAL_ANNOTATION_NAMESPACE = "openmicroscopy.org/omero/client/mapAnnotation"
@@ -322,13 +322,15 @@ def process_well(baseDir, input_wellId, n_image_per_well){ //, perform_bc, media
 					first_image_infos = Opener.getTiffFileInfo(files_matching[0].getAbsolutePath())
 					// We define the imageplus object
 					ImagePlus single_channel_imp
+					ImageStack stack
 					if (first_image_infos == null) {
 						// They are raw from incucyte
 						// We need to open images one by one and add them to the stack
-						ImageStack stack = new ImageStack(first_imp.width, first_imp.height);
+						stack = new ImageStack(first_imp.width, first_imp.height);
 						files_matching.each{
 							ImagePlus single_imp = (new Opener()).openUsingBioFormats(it.getAbsolutePath())
-							String new_title = single_imp.getTitle().split(" - ")[0]
+							String new_title = it.getName()
+							// println "Title of slice: " + new_title
 							stack.addSlice(new_title, single_imp.getProcessor())		
 						}
 						single_channel_imp = new ImagePlus(FilenameUtils.getBaseName(folder_list.get(i).getAbsolutePath()), stack);
@@ -340,7 +342,6 @@ def process_well(baseDir, input_wellId, n_image_per_well){ //, perform_bc, media
 					// Phase are 8-bit and need to be changed to 16-bit
 					// Other are already 16-bit but it does not hurt
 					IJ.run(single_channel_imp, "16-bit", "")
-
 					// check frame size
 					if (nT == 0) {
 						// This is the first channel with images
@@ -348,7 +349,11 @@ def process_well(baseDir, input_wellId, n_image_per_well){ //, perform_bc, media
 						first_channel = channels_list.get(i)
 						// Process all dates:
 						Pattern date_pattern = Pattern.compile(REGEX_FOR_DATE)
-						ImageStack stack = single_channel_imp.getStack()
+						// The IJ.run 16-bit seems to remove the name of the stack
+						// When there is only one stack
+						if (nT !=1 || stack == null) {
+							stack = single_channel_imp.getStack()
+						}
 						// Go to the first time (which is slice)
 						single_channel_imp.setSlice(1)
 						int currentSlice = single_channel_imp.getCurrentSlice()
@@ -844,7 +849,7 @@ def convertLetterToNumber(String letter){
 
 // Returns a date from a label and a date_pattern
 def getDate(String label, Pattern date_pattern){
-//	println "Trying to get date from " + label
+	//	println "Trying to get date from " + label
 	Matcher date_m = date_pattern.matcher(label)
 	LocalDateTime dateTime
 	if (date_m.matches()) {
@@ -854,7 +859,7 @@ def getDate(String label, Pattern date_pattern){
 			dateTime = LocalDateTime.parse("1970-01-" + 1 + (date_m.group(1) as int) + "T" + date_m.group(2) + ":" + date_m.group(3))
 		}
 	}
-//	println "Found " + dateTime
+	//	println "Found " + dateTime
 	return dateTime
 }
 
