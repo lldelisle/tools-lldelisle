@@ -1,7 +1,6 @@
 import argparse
 import json
 
-import omero
 from omero.gateway import BlitzGateway
 
 
@@ -34,16 +33,14 @@ def recursive_get_children_id(parent_object, final_object_type):
     return output
 
 
-def get_children_ids(
-    parent_object_type,
-    omero_id,
-    final_object_type,
-    omero_username,
-    omero_password,
-    omero_host="idr.openmicroscopy.org",
-    omero_secured=False,
-    ):
-    ## Connect to omero:
+def get_children_ids(parent_object_type,
+                     omero_id,
+                     final_object_type,
+                     omero_username,
+                     omero_password,
+                     omero_host="idr.openmicroscopy.org",
+                     omero_secured=False):
+    # Connect to omero:
     with BlitzGateway(
         omero_username, omero_password, host=omero_host, secure=omero_secured
     ) as conn:
