@@ -1,0 +1,7 @@
+categories:
+   - Imaging
+description: Get omero id of children of an omero object id
+name: omero_get_children_ids
+owner: lldelisle
+long_description: Uses a python script to get the ids of children of an omero object.
+remote_repository_url: https://github.com/lldelisle/tools-lldelisle/tree/master/tools/omero_get_children_ids

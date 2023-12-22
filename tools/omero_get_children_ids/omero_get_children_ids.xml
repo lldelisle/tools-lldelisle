@@ -1,0 +1,267 @@
+<tool id="omero_get_children_ids" name="Omero" version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@" profile="20.01" license="MIT">
+    <description>Get children ids</description>
+    <macros>
+        <token name="@TOOL_VERSION@">0.1.0</token>
+        <token name="@VERSION_SUFFIX@">0</token>
+    </macros>
+    <requirements>
+        <requirement type="package" version="5.17.0">omero-py</requirement>
+    </requirements>
+    <command detect_errors="exit_code"><![CDATA[
+        #if $omero_instance_type.omero_instance == "priv":
+            ## the user wants to use a non-public OMERO instance
+            ## check if credentials are set in the user-preferences, if not warn the user and exit
+            #set $username = $__user__.extra_preferences.get('omero_account|username', "")
+            #set $password = $__user__.extra_preferences.get('omero_account|password', "")
+
+            #if $omero_instance_type.galaxy_test_param != 'true' and ($username == "" or $password ==""):
+                echo "OMERO connection credentials are empty. Set your credentials via: User -> Preferences -> Manage Information" 1>&2 &&
+                exit 1 &&
+            #end if
+        #end if
+        python '$__tool_directory__/omero_get_children_ids.py'
+        #if $omero_instance_type.omero_instance =='priv':
+            -oh '$omero_instance_type.omero_host'
+            $omero_instance_type.omero_secured
+            -cf '$credentials'
+        #end if
+        --parent-object-type '$omero_object.parent_object_type'
+        --omero-id '$omero_object.omero_id'
+        --final-object-type '$omero_object.final_object_type'
+        --output '$output'
+    ]]></command>
+    <configfiles>
+        <configfile name="credentials"><![CDATA[
+#if $omero_instance_type.omero_instance =='priv' and $omero_instance_type.galaxy_test_param == 'true':
+    ## as a test for a private instance we actually use a public instance, but with credentials
+    #set $username = 'public'
+    #set $password = 'public'
+#else:
+    #set $username = $__user__.extra_preferences.get('omero_account|username', "")
+    #set $password = $__user__.extra_preferences.get('omero_account|password', "")
+#end if
+{
+    "username": "$username",
+    "password": "$password"
+}
+        ]]></configfile>
+    </configfiles>
+    <inputs>
+        <conditional name="omero_instance_type">
+            <param name="omero_instance" type="select" label="Which OMERO instance to connect?"
+                   help="By default, the tool will request children ID from IDR. If you 
+                   need to connect to your own instance, set your connection username and password from User->Preference->Manage Information" >
+                <option value="idr">IDR</option>
+                <option value="priv">other OMERO instance</option>
+            </param>
+            <when value="priv">
+                <param name="omero_host" type="text" label="OMERO host URL">
+                    <validator type="regex" message="Enter a valid host location, for example, your.omero.server">^[a-zA-Z0-9._-]*$</validator>
+                    <validator type="expression" message="No two dots (..) allowed">'..' not in value</validator>
+                </param>
+                <param name="omero_secured" type="boolean" label="Secured connection?" checked="true" truevalue="--omero-secured" falsevalue=""
+                        help="Select Yes if your OMERO instance is running with SSL, otherwise select No">
+                </param>
+                <param name="galaxy_test_param" type="hidden" value="false" />
+            </when>
+            <when value="idr" />
+        </conditional>
+        <conditional name="omero_object">
+            <param name="parent_object_type" type="select" label="Type of parent object">
+                <option value="well">Well</option>
+                <option value="plate">Plate</option>
+                <option value="screen">Screen</option>
+                <option value="dataset">Dataset</option>
+                <option value="project">Project</option>
+            </param>
+            <when value="well">
+                <param name="omero_id" type="integer" value="" label="Well ID on omero" />
+                <param name="final_object_type" type="hidden" value="image"/>
+            </when>
+            <when value="plate">
+                <param name="omero_id" type="integer" value="" label="Plate ID on omero" />
+                <param name="final_object_type" type="select" label="Type of children object for which you want the id">
+                    <option value="image">All Omero Image Ids</option>
+                    <option value="well">All Omero Well Ids</option>
+                </param>
+            </when>
+            <when value="screen">
+                <param name="omero_id" type="integer" value="" label="Screen ID on omero" />
+                <param name="final_object_type" type="select" label="Type of children object for which you want the id">
+                    <option value="image">All Omero Image Ids</option>
+                    <option value="well">All Omero Well Ids</option>
+                    <option value="plate">All Omero Plate Ids</option>
+                </param>
+            </when>
+            <when value="dataset">
+                <param name="omero_id" type="integer" value="" label="Dataset ID on omero" />
+                <param name="final_object_type" type="hidden" value="image"/>
+            </when>
+            <when value="project">
+                <param name="omero_id" type="integer" value="" label="Project ID on omero" />
+                <param name="final_object_type" type="select" label="Type of children object for which you want the id">
+                    <option value="image">All Omero Image Ids</option>
+                    <option value="dataset">All Omero Dataset Ids</option>
+                </param>
+            </when>
+        </conditional>
+    </inputs>
+    <outputs>
+        <data name="output" format="tabular" label="All ${omero_object.final_object_type} from ${omero_object.parent_object_type} ID ${omero_object.omero_id}" />
+    </outputs>
+    <tests>
+        <test expect_num_outputs="1">
+            <conditional name="omero_instance_type">
+                <param name="omero_instance" value="idr"/>
+            </conditional>
+            <conditional name="omero_object">
+                <param name="parent_object_type" value="well"/>
+                <param name="omero_id" value="2184933"/>
+                <param name="final_object_type" value="image"/>
+            </conditional>
+            <output name="output">
+                <assert_contents>
+                    <has_line line="14263182"/>
+                    <has_n_lines n="4"/>
+                </assert_contents>
+            </output>
+        </test>
+        <test expect_num_outputs="1">
+            <conditional name="omero_instance_type">
+                <param name="omero_instance" value="idr"/>
+            </conditional>
+            <conditional name="omero_object">
+                <param name="parent_object_type" value="plate"/>
+                <param name="omero_id" value="10055"/>
+                <param name="final_object_type" value="image"/>
+            </conditional>
+            <output name="output">
+                <assert_contents>
+                    <has_line line="14263182"/>
+                    <has_n_lines n="1300"/>
+                </assert_contents>
+            </output>
+        </test>
+        <test expect_num_outputs="1">
+            <conditional name="omero_instance_type">
+                <param name="omero_instance" value="idr"/>
+            </conditional>
+            <conditional name="omero_object">
+                <param name="parent_object_type" value="plate"/>
+                <param name="omero_id" value="10055"/>
+                <param name="final_object_type" value="well"/>
+            </conditional>
+            <output name="output">
+                <assert_contents>
+                    <has_line line="2184933"/>
+                    <has_n_lines n="325"/>
+                </assert_contents>
+            </output>
+        </test>
+        <test expect_num_outputs="1">
+            <conditional name="omero_instance_type">
+                <param name="omero_instance" value="idr"/>
+            </conditional>
+            <conditional name="omero_object">
+                <param name="parent_object_type" value="screen"/>
+                <param name="omero_id" value="3302"/>
+                <param name="final_object_type" value="image"/>
+            </conditional>
+            <output name="output">
+                <assert_contents>
+                    <has_line line="14263182"/>
+                    <has_n_lines n="9100"/>
+                </assert_contents>
+            </output>
+        </test>
+        <test expect_num_outputs="1">
+            <conditional name="omero_instance_type">
+                <param name="omero_instance" value="idr"/>
+            </conditional>
+            <conditional name="omero_object">
+                <param name="parent_object_type" value="screen"/>
+                <param name="omero_id" value="3302"/>
+                <param name="final_object_type" value="plate"/>
+            </conditional>
+            <output name="output">
+                <assert_contents>
+                    <has_line line="10055"/>
+                    <has_n_lines n="7"/>
+                </assert_contents>
+            </output>
+        </test>
+        <test expect_num_outputs="1">
+            <conditional name="omero_instance_type">
+                <param name="omero_instance" value="idr"/>
+            </conditional>
+            <conditional name="omero_object">
+                <param name="parent_object_type" value="screen"/>
+                <param name="omero_id" value="3302"/>
+                <param name="final_object_type" value="well"/>
+            </conditional>
+            <output name="output">
+                <assert_contents>
+                    <has_line line="2184933"/>
+                    <has_n_lines n="2275"/>
+                </assert_contents>
+            </output>
+        </test>
+        <test expect_num_outputs="1">
+            <conditional name="omero_instance_type">
+                <param name="omero_instance" value="idr"/>
+            </conditional>
+            <conditional name="omero_object">
+                <param name="parent_object_type" value="dataset"/>
+                <param name="omero_id" value="18101"/>
+                <param name="final_object_type" value="image"/>
+            </conditional>
+            <output name="output">
+                <assert_contents>
+                    <has_line line="15148237"/>
+                    <has_n_lines n="199"/>
+                </assert_contents>
+            </output>
+        </test>
+        <test expect_num_outputs="1">
+            <conditional name="omero_instance_type">
+                <param name="omero_instance" value="idr"/>
+            </conditional>
+            <conditional name="omero_object">
+                <param name="parent_object_type" value="project"/>
+                <param name="omero_id" value="2801"/>
+                <param name="final_object_type" value="image"/>
+            </conditional>
+            <output name="output">
+                <assert_contents>
+                    <has_line line="15148237"/>
+                    <has_n_lines n="494"/>
+                </assert_contents>
+            </output>
+        </test>
+        <test expect_num_outputs="1">
+            <conditional name="omero_instance_type">
+                <param name="omero_instance" value="idr"/>
+            </conditional>
+            <conditional name="omero_object">
+                <param name="parent_object_type" value="project"/>
+                <param name="omero_id" value="2801"/>
+                <param name="final_object_type" value="dataset"/>
+            </conditional>
+            <output name="output">
+                <assert_contents>
+                    <has_line line="18101"/>
+                    <has_n_lines n="2"/>
+                </assert_contents>
+            </output>
+        </test>
+    </tests>
+    <help><![CDATA[
+
+.. class:: infomark
+
+**What it does**
+
+This tool will create a file with the list of all children ids of a given omero object.
+
+    ]]></help>
+</tool>
