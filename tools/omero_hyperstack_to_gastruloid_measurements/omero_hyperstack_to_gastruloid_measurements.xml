@@ -1,6 +1,6 @@
 <tool id="omero_hyperstack_to_gastruloid_measurements" name="Omero hyperstack to Gastruloid measurements" profile="20.01" version="@TOOL_VERSION@+galaxy0">
     <macros>
-        <token name="@TOOL_VERSION@">20231220</token>
+        <token name="@TOOL_VERSION@">20240214</token>
         <xml name="segmentation">
             <conditional name="use_ilastik">
                 <param name="segmentation_method" type="select" label="Segmentation method">
@@ -29,8 +29,28 @@
                             <param name="probability_threshold_BG" type="hidden" value="0"/>
                         </when>
                     </conditional>
+                    <param name="thresholding_method" type="hidden" value="Default"/>
                 </when>
                 <when value="convert_to_mask">
+                    <param name="thresholding_method" type="select" label="Thresholding method" help="Method to use in the convert to mask">
+                        <option value="Default">Default</option>
+                        <option value="Huang">Huang</option>
+                        <option value="Intermodes">Intermodes</option>
+                        <option value="IsoData">IsoData</option>
+                        <option value="IJ_IsoData">IJ_IsoData</option>
+                        <option value="Li">Li</option>
+                        <option value="MaxEntropy">MaxEntropy</option>
+                        <option value="Mean">Mean</option>
+                        <option value="MinError">MinError</option>
+                        <option value="Minimum">Minimum</option>
+                        <option value="Moments">Moments</option>
+                        <option value="Otsu">Otsu</option>
+                        <option value="Percentile">Percentile</option>
+                        <option value="RenyiEntropy">RenyiEntropy</option>
+                        <option value="Shanbhag">Shanbhag</option>
+                        <option value="Triangle">Triangle</option>
+                        <option value="Yen">Yen</option>
+                    </param>
                     <param name="ilastik_project_type" type="hidden" value="Regular" />
                     <param name="ilastik_label_OI" type="hidden" value="3" />
                     <param name="probability_threshold" type="hidden" value="0" />
@@ -40,18 +60,34 @@
                     </section>
                 </when>
             </conditional>
-            <param name="radius_median" type="float" value="20" label="Radius for median (=smooth the mask)" />
-            <param name="min_size_particle" type="integer" min="0" value="5000" label="Minimum surface for Analyze Particle" />
+            <section name="options" title="Options..." expanded="false" >
+                <param name="options_do" type="select" label="In Options... do=" help="Operation to perform after thresholding">
+                    <option value="Nothing">Nothing</option>
+                    <option value="Erode">Erode</option>
+                    <option value="Dilate">Dilate</option>
+                    <option value="Open">Open</option>
+                    <option value="Close">Close</option>
+                    <option value="Outline">Outline</option>
+                    <option value="Fill">Fill</option>
+                    <option value="Holes">Holes</option>
+                    <option value="Skeletonize">Skeletonize</option>
+                </param>
+                <param name="options_iteration" type="integer" min="1" value="1" label="In Options... iteration=" />
+                <param name="options_count" type="integer" min="1" max="8" value="1" label="In Options... count=" />
+            </section>
+            <param name="fill_holes_before_median" type="boolean" truevalue="true" falsevalue="false" checked="false" label="Fill holes before the Median..." />
+            <param name="radius_median" type="float" value="10" label="Radius for median (=smooth the mask)" />
+            <param name="min_size_particle" type="float" min="0" value="20000" label="Minimum surface for Analyze Particle" />
             <param name="keep_only_largest" type="boolean" truevalue="true" falsevalue="false" checked="true" label="Keep only one gastruloid per timepoint" />
         </xml>
     </macros>
     <requirements>
-        <requirement type="package" version="20220414">fiji</requirement>
+        <requirement type="package" version="20231211">fiji</requirement>
         <requirement type="package" version="3.7">python</requirement>
-        <requirement type="package" version="2.0.0">fiji-max_inscribed_circles</requirement>
+        <requirement type="package" version="2.1.0">fiji-max_inscribed_circles</requirement>
         <requirement type="package" version="1.8.2">fiji-ilastik</requirement>
-        <requirement type="package" version="5.8.0">fiji-omero_ij</requirement>
-        <requirement type="package" version="5.12.2">fiji-simple_omero_client</requirement>
+        <requirement type="package" version="5.8.3">fiji-omero_ij</requirement>
+        <requirement type="package" version="5.16.0">fiji-simple_omero_client</requirement>
     </requirements>
     <command detect_errors="exit_code"><![CDATA[
         ## the user wants to use a non-public OMERO instance
@@ -75,7 +111,7 @@
         ## Because ilastik wants to write to ${HOME}/.cache and ${HOME}/.config
         export HOME=`pwd` &&
         ImageJ-ilastik --ij2 --headless --console --run '$__tool_directory__/'1-omero_timelapse_image_to_measurements_phase.groovy 
-            'USERNAME="",PASSWORD="",credentials="${credentials}",host="${omero_host}",port="${omero_port}",object_type="${omero_object.object_type}",id="${omero_object.omero_id}",segmentation_method="${mode.use_ilastik.segmentation_method}",use_existing="${mode.use_existing}",ilastik_project="$ilastik_project_file",ilastik_project_short_name="$ilastik_project_name",ilastik_project_type="${mode.use_ilastik.ilastik_project_type}",ilastik_label_OI="${mode.use_ilastik.ilastik_label_OI}",probability_threshold="${mode.use_ilastik.probability_threshold}",radius_median="${mode.radius_median}",min_size_particle="${mode.min_size_particle}",get_spine="true",minimum_diameter="${minimum_diameter}",closeness_tolerance="${closeness_tolerance}",min_similarity="${min_similarity}",output_directory="output",debug="${debug}",rescue="${mode.rescue}",ilastik_label_BG="${mode.use_ilastik.background.ilastik_label_BG}",probability_threshold_BG="${mode.use_ilastik.background.probability_threshold_BG}",keep_only_largest="${mode.keep_only_largest}"' > output.log
+            'USERNAME="",PASSWORD="",credentials="${credentials}",host="${omero_host}",port="${omero_port}",object_type="${omero_object.object_type}",id="${omero_object.omero_id}",segmentation_method="${mode.use_ilastik.segmentation_method}",use_existing="${mode.use_existing}",ilastik_project="$ilastik_project_file",ilastik_project_short_name="$ilastik_project_name",ilastik_project_type="${mode.use_ilastik.ilastik_project_type}",ilastik_label_OI="${mode.use_ilastik.ilastik_label_OI}",probability_threshold="${mode.use_ilastik.probability_threshold}",radius_median="${mode.radius_median}",min_size_particle="${mode.min_size_particle}",get_spine="true",minimum_diameter_um="${minimum_diameter_um}",closeness_tolerance_um="${closeness_tolerance_um}",min_similarity="${min_similarity}",output_directory="output",debug="${debug}",rescue="${mode.rescue}",ilastik_label_BG="${mode.use_ilastik.background.ilastik_label_BG}",probability_threshold_BG="${mode.use_ilastik.background.probability_threshold_BG}",keep_only_largest="${mode.keep_only_largest}",replace_at_runtime="${mode.replace_at_runtime}",thresholding_method="${mode.use_ilastik.thresholding_method}",options_do="${mode.options.options_do}",options_iteration="${mode.options.options_iteration}",options_count="${mode.options.options_count}",fill_holes_before_median="${mode.fill_holes_before_median}"' > output.log
         ]]>
     </command>
     <configfiles>
@@ -113,17 +149,26 @@ $password
         </conditional>
         <conditional name="mode">
             <param name="mode_select" type="select" label="Which mode do you want to use?" >
-                <option value="regular">Regular (from scratch)</option>
+                <option value="replace_existing">Replace existing (not recommanded with Ilastik)</option>
                 <option value="spine_only">Recompute only spine</option>
+                <option value="regular">Regular (from scratch)</option>
                 <option value="rescue">Rescue (if Regular did not go to the end)</option>
             </param>
+            <when value="replace_existing">
+                <expand macro="segmentation"/>
+                <param name="replace_at_runtime" type="hidden" value="true"/>
+                <param name="rescue" type="hidden" value="false"/>
+                <param name="use_existing" type="hidden" value="false"/>
+            </when>
             <when value="regular">
                 <expand macro="segmentation"/>
+                <param name="replace_at_runtime" type="hidden" value="false"/>
                 <param name="rescue" type="hidden" value="false"/>
                 <param name="use_existing" type="hidden" value="false"/>
             </when>
             <when value="rescue">
                 <expand macro="segmentation"/>
+                <param name="replace_at_runtime" type="hidden" value="false"/>
                 <param name="rescue" type="hidden" value="true"/>
                 <param name="use_existing" type="hidden" value="false"/>
             </when>
@@ -138,15 +183,16 @@ $password
                         <param name="probability_threshold_BG" type="hidden" value="0"/>
                     </section>
                 </section>
-                <param name="radius_median" type="hidden" value="20" />
-                <param name="min_size_particle" type="hidden" value="5000" />
+                <param name="replace_at_runtime" type="hidden" value="false"/>
+                <param name="radius_median" type="hidden" value="10" />
+                <param name="min_size_particle" type="hidden" value="20000" />
                 <param name="keep_only_largest" type="hidden" value="true"/>
                 <param name="rescue" type="hidden" value="false"/>
                 <param name="use_existing" type="hidden" value="true"/>
             </when>
         </conditional>
-        <param name="minimum_diameter" type="integer" min="0" value="20" label="Minimum diameter of inscribed circles" />
-        <param name="closeness_tolerance" type="integer" min="0" value="50" label="Closeness Tolerance for the spine" help="Maximum distance between circles along the spine"/>
+        <param name="minimum_diameter_um" type="float" min="0" value="40" label="Minimum diameter of inscribed circles (in um)" />
+        <param name="closeness_tolerance_um" type="float" min="0" value="50" label="Closeness Tolerance for the spine (in um)" help="Maximum distance between circles along the spine"/>
         <param name="min_similarity" type="float" min="-1" max="1" value="0.1" label="Min similarity for the spine" help="Close to 0 values allow more U shapes while close to 1 values only allows I shapes" />
         <param name="debug" type="boolean" truevalue="true" falsevalue="false" checked="false" label="Debug the elongation index" help="This will output all inscribed circles" />
         <param name="keep_intermediate" type="boolean" checked="false" label="Keep intermediate results (ilastik prediction + tables)" />
@@ -188,7 +234,7 @@ License text::
 
     /*
     * = COPYRIGHT =
-    * © All rights reserved. ECOLE POLYTECHNIQUE FEDERALE DE LAUSANNE, Switzerland, BioImaging And Optics Platform (BIOP), 2023
+    * © All rights reserved. ECOLE POLYTECHNIQUE FEDERALE DE LAUSANNE, Switzerland, BioImaging And Optics Platform (BIOP), 2024
     * 
     * Licensed under the BSD-3-Clause License:
     * Redistribution and use in source and binary forms, with or without modification, are permitted provided 

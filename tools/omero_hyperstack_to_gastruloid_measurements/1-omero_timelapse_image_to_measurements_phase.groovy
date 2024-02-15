@@ -5,11 +5,11 @@
 // merge the analysis script with templates available at
 // https://github.com/BIOP/OMERO-scripts/tree/025047955b5c1265e1a93b259c1de4600d00f107/Fiji
 
-// Last modification: 2023-12-20
+// Last modification: 2024-02-14
 
 /*
  * = COPYRIGHT =
- * © All rights reserved. ECOLE POLYTECHNIQUE FEDERALE DE LAUSANNE, Switzerland, BioImaging And Optics Platform (BIOP), 2023
+ * © All rights reserved. ECOLE POLYTECHNIQUE FEDERALE DE LAUSANNE, Switzerland, BioImaging And Optics Platform (BIOP), 2024
  *
  * Licensed under the BSD-3-Clause License:
  * Redistribution and use in source and binary forms, with or without modification, are permitted provided
@@ -45,19 +45,22 @@
 // The option 'rescue' allows to only process images without ROIs and
 // tables and generate the final table
 
-// Without this option, the job will fail if a ROI or a table exists
+// The option 'replace_at_runtime' allows to remove tables at start
+// and ROIs on each image just before processing.
 
-// If a final table exists it will fail in both modes
-
-// The option use_existing allows to
+// The option 'use_existing' allows to
 // Recompute only spine
+
+// Without 'use_existing' or 'replace_at_runtime', the job will fail if a final table exists
+
+// Without 'use_existing' or 'replace_at_runtime' or 'rescue', the job will fail if ROI exists
 
 // This macro works both in headless
 // or GUI
 
 // In both modes,
-// The result table and the result ROI are sent to omero
-// The measures are: Area,Perim.,Circ.,Feret,FeretX,FeretY,FeretAngle,MinFeret,AR,Round,Solidity,Unit,Date,Version,IlastikProject,ProbabilityThreshold,MinSizeParticle,MinDiameter,ClosenessTolerance,MinSimilarity,RadiusMedian,BaseImage,ROI,Time,ROI_type,XCentroid,YCentroid,LargestRadius,SpineLength,ElongationIndex[,Date_rerun_spine,Version_rerun_spine]
+// The result table and the result ROIs are sent to omero
+// The measures are: Area,Perim.,Circ.,Feret,FeretX,FeretY,FeretAngle,MinFeret,AR,Round,Solidity,Unit,Date,Version,IlastikProject,ProbabilityThreshold,ThresholdingMethod,OptionsDo,OptionsIterations,OptionsCount,FillHolesBefore,RadiusMedian,MinSizeParticle,MinDiameter,ClosenessTolerance,MinSimilarity,BaseImage,ROI,Time,ROI_type,XCentroid,YCentroid,LargestRadius,SpineLength,ElongationIndex[,Date_rerun_spine,Version_rerun_spine]
 
 // LargestRadius and SpineLength are set to 0 if no circle was found.
 // ElongationIndex is set to 0 if a gastruloid was found and to -1 if no gastruloid was found.
@@ -397,26 +400,39 @@ def processDataset(Client user_client, DatasetWrapper dataset_wrp,
                    File ilastik_project, String ilastik_project_type,
                    Integer ilastik_label_OI,
                    Double probability_threshold, Double radius_median,
-                   Integer min_size_particle, Boolean get_spine,
-                   Integer minimum_diameter, Integer closeness_tolerance, Double min_similarity,
+                   Double min_size_particle, Boolean get_spine,
+                   Double minimum_diameter_um, Double closeness_tolerance_um, Double min_similarity,
                    String ilastik_project_short_name,
                    File output_directory,
                    Boolean headless_mode, Boolean debug, String tool_version,
                    Boolean use_existing, String final_object, Boolean rescue,
                    Integer ilastik_label_BG, Double probability_threshold_BG,
-                   Boolean keep_only_largest, String segmentation_method) {
+                   Boolean keep_only_largest, String segmentation_method,
+                   Boolean replace_at_runtime,
+                   String thresholding_method, String options_do,
+                   Integer options_iteration, Integer options_count,
+                   Boolean fill_holes_before_median) {
     robustlyGetAll(dataset_wrp, "image", user_client).each{ ImageWrapper img_wrp ->
+        if (replace_at_runtime) {
+            List<ROIWrapper> rois = robustlyGetROIs(image_wrp, user_client)
+            if (!rois.isEmpty()) {
+                robustlyDeleteROIs(image_wrp, user_client, rois)
+            }
+        }
         processImage(user_client, img_wrp,
                      ilastik_project, ilastik_project_type,
                      ilastik_label_OI, probability_threshold,
                      radius_median, min_size_particle, get_spine,
-                     minimum_diameter, closeness_tolerance, min_similarity,
+                     minimum_diameter_um, closeness_tolerance_um, min_similarity,
                      ilastik_project_short_name,
                      output_directory,
                      headless_mode, debug, tool_version,
                      use_existing, final_object, rescue,
                      ilastik_label_BG, probability_threshold_BG,
-                     keep_only_largest, segmentation_method)
+                     keep_only_largest, segmentation_method,
+                     thresholding_method, options_do,
+                     options_iteration, options_count,
+                     fill_holes_before_median)
     }
 }
 
@@ -424,26 +440,34 @@ def processSinglePlate(Client user_client, PlateWrapper plate_wrp,
                        File ilastik_project, String ilastik_project_type,
                        Integer ilastik_label_OI,
                        Double probability_threshold, Double radius_median,
-                       Integer min_size_particle, Boolean get_spine,
-                       Integer minimum_diameter, Integer closeness_tolerance, Double min_similarity,
+                       Double min_size_particle, Boolean get_spine,
+                       Double minimum_diameter_um, Double closeness_tolerance_um, Double min_similarity,
                        String ilastik_project_short_name,
                        File output_directory,
                        Boolean headless_mode, Boolean debug, String tool_version, Boolean use_existing,
                        String final_object, Boolean rescue,
                        Integer ilastik_label_BG, Double probability_threshold_BG,
-                       Boolean keep_only_largest, String segmentation_method) {
+                       Boolean keep_only_largest, String segmentation_method,
+                       Boolean replace_at_runtime,
+                       String thresholding_method, String options_do,
+                       Integer options_iteration, Integer options_count,
+                       Boolean fill_holes_before_median) {
     robustlyGetAll(plate_wrp, "well", user_client).each{ well_wrp ->
         processSingleWell(user_client, well_wrp,
                      ilastik_project, ilastik_project_type,
                      ilastik_label_OI, probability_threshold,
                      radius_median, min_size_particle, get_spine,
-                     minimum_diameter, closeness_tolerance, min_similarity,
+                     minimum_diameter_um, closeness_tolerance_um, min_similarity,
                      ilastik_project_short_name,
                      output_directory,
                      headless_mode, debug, tool_version,
                      use_existing, final_object, rescue,
                      ilastik_label_BG, probability_threshold_BG,
-                     keep_only_largest, segmentation_method)
+                     keep_only_largest, segmentation_method,
+                     replace_at_runtime,
+                     thresholding_method, options_do,
+                     options_iteration, options_count,
+                     fill_holes_before_median)
     }
 }
 
@@ -451,41 +475,58 @@ def processSingleWell(Client user_client, WellWrapper well_wrp,
                       File ilastik_project, String ilastik_project_type,
                       Integer ilastik_label_OI,
                       Double probability_threshold, Double radius_median,
-                      Integer min_size_particle, Boolean get_spine,
-                      Integer minimum_diameter, Integer closeness_tolerance, Double min_similarity,
+                      Double min_size_particle, Boolean get_spine,
+                      Double minimum_diameter_um, Double closeness_tolerance_um, Double min_similarity,
                       String ilastik_project_short_name,
                       File output_directory,
                       Boolean headless_mode, Boolean debug, String tool_version, Boolean use_existing,
                       String final_object, Boolean rescue,
                       Integer ilastik_label_BG, Double probability_threshold_BG,
-                      Boolean keep_only_largest, String segmentation_method) {
+                      Boolean keep_only_largest, String segmentation_method,
+                      Boolean replace_at_runtime,
+                      String thresholding_method, String options_do,
+                      Integer options_iteration, Integer options_count,
+                      Boolean fill_holes_before_median) {
     well_wrp.getWellSamples().each{
-        processImage(user_client, it.getImage(),
+        ImageWrapper img_wrp = it.getImage()
+        if (replace_at_runtime) {
+            List<ROIWrapper> rois = robustlyGetROIs(img_wrp, user_client)
+            if (!rois.isEmpty()) {
+                robustlyDeleteROIs(img_wrp, user_client, rois)
+            }
+        }
+        processImage(user_client, img_wrp,
                      ilastik_project, ilastik_project_type,
                      ilastik_label_OI, probability_threshold,
                      radius_median, min_size_particle, get_spine,
-                     minimum_diameter, closeness_tolerance, min_similarity,
+                     minimum_diameter_um, closeness_tolerance_um, min_similarity,
                      ilastik_project_short_name,
                      output_directory,
                      headless_mode, debug, tool_version,
                      use_existing, final_object, rescue,
                      ilastik_label_BG, probability_threshold_BG,
-                     keep_only_largest, segmentation_method)
+                     keep_only_largest, segmentation_method,
+                     thresholding_method, options_do,
+                     options_iteration, options_count,
+                     fill_holes_before_median)
     }
 }
 
 def processImage(Client user_client, ImageWrapper image_wrp,
                  File ilastik_project, String ilastik_project_type, // String ilastik_strategy,
                  Integer ilastik_label_OI,
-                 Double probability_threshold, Double radius_median, Integer min_size_particle,
+                 Double probability_threshold, Double radius_median, Double min_size_particle,
                  Boolean get_spine,
-                 Integer minimum_diameter, Integer closeness_tolerance, Double min_similarity,
+                 Double minimum_diameter_um, Double closeness_tolerance_um, Double min_similarity,
                  String ilastik_project_short_name,
                  File output_directory,
                  Boolean headless_mode, Boolean debug, String tool_version,
                  Boolean use_existing, String final_object, Boolean rescue,
                  Integer ilastik_label_BG, Double probability_threshold_BG,
-                 Boolean keep_only_largest, String segmentation_method) {
+                 Boolean keep_only_largest, String segmentation_method,
+                 String thresholding_method, String options_do,
+                 Integer options_iteration, Integer options_count,
+                 Boolean fill_holes_before_median) {
 
     IJ.run("Close All", "")
     IJ.run("Clear Results")
@@ -584,7 +625,7 @@ def processImage(Client user_client, ImageWrapper image_wrp,
             use_existing = false
             rescue = false
             rois = robustlyGetROIs(image_wrp, user_client)
-            if (rois.size() > 0) {
+            if (!rois.isEmpty()) {
                 // Clean existing ROIs
                 robustlyDeleteROIs(image_wrp, user_client, rois)
             }
@@ -693,17 +734,19 @@ def processImage(Client user_client, ImageWrapper image_wrp,
             // Get only the channel with bright field
             mask_imp = new Duplicator().run(imp, ilastik_input_ch, ilastik_input_ch, 1, 1, 1, nT);
             // Run convert to mask
-            (new Thresholder()).convertStackToBinary(mask_imp);
+            Thresholder my_thresholder = new Thresholder()
+            my_thresholder.setMethod(thresholding_method)
+            my_thresholder.setBackground("Light")
+            Prefs.blackBackground = true
+            my_thresholder.convertStackToBinary(mask_imp)
         }
         // This title will appear in the result table
         mask_imp.setTitle(image_basename)
         if (!headless_mode) {  mask_imp.show() }
-
-        // clean the mask a bit
-        // Before we were doing:
-        // IJ.run(mask_ilastik_imp, "Options...", "iterations=10 count=3 black do=Open")
-        // Now:
-        // (Romain proposed 5 as radius_median)
+        IJ.run(mask_imp, "Options...", "iterations=" + options_iteration + " count=" + options_count + " black do=" + options_do + " stack")
+        if (fill_holes_before_median) {
+            IJ.run(mask_imp, "Fill Holes", "stack")
+        }
         println "Smoothing mask"
 
         // Here I need to check if we first fill holes or first do the median
@@ -714,7 +757,8 @@ def processImage(Client user_client, ImageWrapper image_wrp,
         // find gastruloids and measure them
 
         IJ.run("Set Measurements...", "area feret's perimeter shape display redirect=None decimal=3")
-        IJ.run("Set Scale...", "distance=1 known=" + scale + " unit=micron")
+
+        IJ.run(mask_imp, "Set Scale...", "distance=1 known=" + scale + " unit=micron")
         pixelWidth = mask_imp.getCalibration().pixelWidth
         println "pixelWidth is " + pixelWidth
         // Exclude the edge
@@ -732,6 +776,13 @@ def processImage(Client user_client, ImageWrapper image_wrp,
             for (int t=1;t<=nT;t++) {
                 // Don't ask me why we need to refer to Z pos and not T/Frame
                 ArrayList<Roi> all_rois_inT = ov.findAll{ roi -> roi.getZPosition() == t}
+                // When there is a single time the ROI has ZPosition to 0:
+                if (nT == 1) {
+                	all_rois_inT = (ov as List)
+                    if (all_rois_inT == null) {
+                        all_rois_inT = []
+                    }
+                }
                 println "There are " + all_rois_inT.size() + " in time " + t
                 if (all_rois_inT.size() > 0) {
                     largest_roi_inT = Collections.max(all_rois_inT, Comparator.comparing((roi) -> roi.getStatistics().area ))
@@ -744,6 +795,9 @@ def processImage(Client user_client, ImageWrapper image_wrp,
                 // Update the position before adding to the clean_overlay
                 largest_roi_inT.setPosition( ilastik_input_ch, 1, t)
                 clean_overlay.add(largest_roi_inT)
+                if (!headless_mode) {
+                    rm.addRoi(largest_roi_inT)
+                }
             }
         } else {
             // We keep all
@@ -752,6 +806,10 @@ def processImage(Client user_client, ImageWrapper image_wrp,
             ov.each{ Roi roi ->
                 // Don't ask me why we need to refer to Z pos and not T/Frame
                 t = roi.getZPosition()
+                // When there is a single time the ROI has ZPosition to 0:
+                if (nT == 1) {
+                	t = 1
+                }
                 id = lastID[t - 1] + 1
                 roi.setName("Gastruloid_t" + t + "_id" + id)
                 // Increase lastID:
@@ -759,6 +817,9 @@ def processImage(Client user_client, ImageWrapper image_wrp,
                 // Update the position before adding to the clean_overlay
                 roi.setPosition( ilastik_input_ch, 1, t)
                 clean_overlay.add(roi)
+                if (!headless_mode) {
+                    rm.addRoi(roi)
+                }
             }
             // Fill timepoints with no ROI with notfound:
             Roi roi
@@ -789,15 +850,21 @@ def processImage(Client user_client, ImageWrapper image_wrp,
             if (segmentation_method == "ilastik") {
                 rt.setValue("IlastikProject", row, ilastik_project_short_name)
                 rt.setValue("ProbabilityThreshold", row, probability_threshold)
+                rt.setValue("ThresholdingMethod", row, "NA")
             } else {
                 rt.setValue("IlastikProject", row, "NA")
                 rt.setValue("ProbabilityThreshold", row, "NA")
+                rt.setValue("ThresholdingMethod", row, thresholding_method)
             }
-            rt.setValue("MinSizeParticle", row, min_size_particle)
-            rt.setValue("MinDiameter", row, minimum_diameter)
-            rt.setValue("ClosenessTolerance", row, closeness_tolerance)
-            rt.setValue("MinSimilarity", row, min_similarity)
+            rt.setValue("OptionsDo", row, options_do)
+            rt.setValue("OptionsIterations", row, options_iteration)
+            rt.setValue("OptionsCount", row, options_count)
+            rt.setValue("FillHolesBefore", row, "" + fill_holes_before_median)
             rt.setValue("RadiusMedian", row, radius_median)
+            rt.setValue("MinSizeParticle", row, min_size_particle)
+            rt.setValue("MinDiameter", row, minimum_diameter_um)
+            rt.setValue("ClosenessTolerance", row, closeness_tolerance_um)
+            rt.setValue("MinSimilarity", row, min_similarity)
             String label = rt.getLabel(row)
             rt.setValue("BaseImage", row, label.split(":")[0])
             rt.setValue("ROI", row, label.split(":")[1])
@@ -852,8 +919,8 @@ def processImage(Client user_client, ImageWrapper image_wrp,
             for ( int row = 0;row<rt.size();row++) {
                 rt.setValue("Date_rerun_spine", row, now)
                 rt.setValue("Version_rerun_spine", row, tool_version)
-                rt.setValue("MinDiameter", row, minimum_diameter)
-                rt.setValue("ClosenessTolerance", row, closeness_tolerance)
+                rt.setValue("MinDiameter", row, minimum_diameter_um)
+                rt.setValue("ClosenessTolerance", row, closeness_tolerance_um)
                 rt.setValue("MinSimilarity", row, min_similarity)
             }
             // Remove any roi which is not gastruloid:
@@ -896,7 +963,7 @@ def processImage(Client user_client, ImageWrapper image_wrp,
                 mask_imp.setT(t)
                 t_ov.fill(mask_imp,  Color.white, Color.black)
             }
-            IJ.run("Set Scale...", "distance=1 known=" + scale + " unit=micron")
+            IJ.run(mask_imp, "Set Scale...", "distance=1 known=" + scale + " unit=micron")
             pixelWidth = mask_imp.getCalibration().pixelWidth
             println "pixelWidth is " + pixelWidth
 
@@ -955,10 +1022,10 @@ def processImage(Client user_client, ImageWrapper image_wrp,
                 isGetSpine = true
                 appendPositionToName = false
                 MaxInscribedCircles mic = MaxInscribedCircles.builder(mask_imp_single)
-                    .minimumDiameter(minimum_diameter)
+                    .minimumDiameter((int)(minimum_diameter_um / pixelWidth))
                     .useSelectionOnly(isSelectionOnly)
                     .getSpine(isGetSpine)
-                    .spineClosenessTolerance(closeness_tolerance)
+                    .spineClosenessTolerance((int)(closeness_tolerance_um / pixelWidth))
                     .spineMinimumSimilarity(min_similarity)
                     .appendPositionToName(appendPositionToName)
                     .build()
@@ -1096,7 +1163,7 @@ def processImage(Client user_client, ImageWrapper image_wrp,
 // In simple-omero-client
 // Strings that can be converted to double are stored in double
 // In order to build the super_table, tool_version should stay String
-String tool_version = "White_v20231220"
+String tool_version = "White_v20240214"
 
 // User set variables
 
@@ -1111,16 +1178,26 @@ String tool_version = "White_v20231220"
 
 #@ String(visibility=MESSAGE, value="Parameters for segmentation/ROI", required=false) msg2
 #@ Boolean(label="Use existing segmentation (values below in the section will be ignored)") use_existing
+#@ Boolean(label="Replace ROIs and Tables") replace_at_runtime
 #@ String(label="Segmentation Method", choices={"convert_to_mask","ilastik"}) segmentation_method
 #@ Boolean(label="<html>Run in rescue mode<br/>(only segment images without tables)</html>", value=false) rescue
+#@ String(label="Options do", choices={"Nothing", "Erode", "Dilate", "Open", "Close", "Outline", "Fill Holes", "Skeletonize"}) options_do
+#@ Integer(label="Options iteration", min=1, value=1) options_iteration
+#@ Integer(label="Options count", min=1, max=8, value=1) options_count
+#@ Boolean(label="Fill holes before Median", value=false) fill_holes_before_median
+#@ Double(label="Radius for median (=smooth the mask)", min=1, value=10) radius_median
+#@ Double(label="Minimum surface for Analyze Particle", value=20000) min_size_particle
+#@ Boolean(label="Keep only one gastruloid per timepoint", value=true) keep_only_largest
+
+#@ String(visibility=MESSAGE, value="Parameters for ilastik (ignore if you choose convert_to_mask)", required=false) msg2_1
 #@ File(label="Ilastik project") ilastik_project
 #@ String(label="Ilastik project short name") ilastik_project_short_name
 #@ String(label="Ilastik project type", choices={"Regular", "Auto-context"}, value="Regular") ilastik_project_type
 #@ Integer(label="Ilastik label of interest", min=1, value=1) ilastik_label_OI
 #@ Double(label="Probability threshold for ilastik", min=0, max=1, value=0.65) probability_threshold
-#@ Double(label="Radius for median (=smooth the mask)", min=1, value=20) radius_median
-#@ Integer(label="Minimum surface for Analyze Particle", value=5000) min_size_particle
-#@ Boolean(label="Keep only one gastruloid per timepoint", value=true) keep_only_largest
+
+#@ String(visibility=MESSAGE, value="Parameters for convert_to_mask (ignore if you choose ilastik)", required=false) msg2_2
+#@ String(label="Thresholding method", choices={"Default", "Huang", "Intermodes", "IsoData", "IJ_IsoData", "Li", "MaxEntropy", "Mean", "MinError", "Minimum", "Moments", "Otsu", "Percentile", "RenyiEntropy", "Shanbhag", "Triangle", "Yen"}) thresholding_method
 
 #@ String(visibility=MESSAGE, value="Parameters for segmentation/ROI of background", required=false) msg3
 #@ Integer(label="Ilastik label of background (put 0 if not present)", min=0, value=1) ilastik_label_BG
@@ -1128,8 +1205,8 @@ String tool_version = "White_v20231220"
 
 #@ String(visibility=MESSAGE, value="Parameters for elongation index", required=false) msg4
 #@ Boolean(label="Compute spine", value=true) get_spine
-#@ Integer(label="Minimum diameter of inscribed circles", min=0, value=20) minimum_diameter
-#@ Integer(label="Closeness Tolerance (Spine)", min=0, value=50) closeness_tolerance
+#@ Double(label="Minimum diameter of inscribed circles (um)", min=0, value=40) minimum_diameter_um
+#@ Double(label="Closeness Tolerance (Spine) (um)", min=0, value=50) closeness_tolerance_um
 #@ Double(label="Min similarity (Spine)", min=-1, max=1, value=0.1) min_similarity
 
 #@ String(visibility=MESSAGE, value="Parameters for output", required=false) msg5
@@ -1139,6 +1216,9 @@ String tool_version = "White_v20231220"
 // Handle incompatibilities:
 if (rescue && use_existing) {
     throw new Exception("rescue and use_existing modes are incompatible")
+}
+if (replace_at_runtime && use_existing) {
+    throw new Exception("replace_at_runtime and use_existing modes are incompatible")
 }
 if (use_existing && !get_spine) {
     throw new Exception("use_existing mode requires get_spine")
@@ -1204,12 +1284,20 @@ if (user_client.isConnected()) {
                 if (!use_existing) {
                     List<TableWrapper> tables = robustlyGetTables(image_wrp, user_client)
                     if (!tables.isEmpty()) {
-                        throw new Exception("There should be no table associated to the image before segmentation. Please clean the image.")
+                        if (replace_at_runtime) {
+                            robustlyDeleteTables(image_wrp, user_client)
+                        } else {
+                            throw new Exception("There should be no table associated to the image before segmentation. Please clean the image.")
+                        }
                     }
                     if (!rescue) {
                         List<ROIWrapper> rois = robustlyGetROIs(image_wrp, user_client)
                         if (!rois.isEmpty()) {
-                            throw new Exception("There should be no ROIs associated to the image before segmentation. Please clean the image.")
+                            if (replace_at_runtime) {
+                                robustlyDeleteROIs(image_wrp, user_client, rois)
+                            } else {
+                                throw new Exception("There should be no ROIs associated to the image before segmentation. Please clean the image.")
+                            }
                         }
                     }
                 }
@@ -1217,17 +1305,20 @@ if (user_client.isConnected()) {
                     ilastik_project, ilastik_project_type,
                     ilastik_label_OI,
                     probability_threshold, radius_median, min_size_particle,
-                    get_spine, minimum_diameter, closeness_tolerance, min_similarity,
+                    get_spine, minimum_diameter_um, closeness_tolerance_um, min_similarity,
                     ilastik_project_short_name,
                     output_directory,
                     headless_mode, debug, tool_version,
                     use_existing, "image", rescue,
                     ilastik_label_BG, probability_threshold_BG,
-                    keep_only_largest, segmentation_method)
+                    keep_only_largest, segmentation_method,
+                    thresholding_method, options_do,
+                    options_iteration, options_count,
+                    fill_holes_before_median)
                 break
             case "dataset":
                 DatasetWrapper dataset_wrp = robustlyGetOne(id, "dataset", user_client)
-                if (use_existing) {
+                if (use_existing || replace_at_runtime) {
                     // Remove the tables associated to the dataset
                     robustlyDeleteTables(dataset_wrp, user_client)
                 } else if (rescue) {
@@ -1244,20 +1335,24 @@ if (user_client.isConnected()) {
                      ilastik_project, ilastik_project_type,
                      ilastik_label_OI,
                      probability_threshold, radius_median, min_size_particle,
-                     get_spine, minimum_diameter, closeness_tolerance, min_similarity,
+                     get_spine, minimum_diameter_um, closeness_tolerance_um, min_similarity,
                      ilastik_project_short_name,
                      output_directory,
                      headless_mode, debug, tool_version,
                      use_existing, "dataset", rescue,
                      ilastik_label_BG, probability_threshold_BG,
-                     keep_only_largest, segmentation_method)
+                     keep_only_largest, segmentation_method,
+                     replace_at_runtime,
+                     thresholding_method, options_do,
+                     options_iteration, options_count,
+                     fill_holes_before_median)
                 // upload the table on OMERO
                 super_table.setName(table_name + "_global")
                 robustlyAddAndReplaceTable(dataset_wrp, user_client, super_table)
                 break
             case "well":
                 WellWrapper well_wrp = robustlyGetOne(id, "well", user_client)
-                if (use_existing) {
+                if (use_existing || replace_at_runtime) {
                     // Remove the tables associated to the well
                     robustlyDeleteTables(well_wrp, user_client)
                 } else if (rescue) {
@@ -1274,20 +1369,24 @@ if (user_client.isConnected()) {
                      ilastik_project, ilastik_project_type,
                      ilastik_label_OI,
                      probability_threshold, radius_median, min_size_particle,
-                     get_spine, minimum_diameter, closeness_tolerance, min_similarity,
+                     get_spine, minimum_diameter_um, closeness_tolerance_um, min_similarity,
                      ilastik_project_short_name,
                      output_directory,
                      headless_mode, debug, tool_version,
                      use_existing, "well", rescue,
                      ilastik_label_BG, probability_threshold_BG,
-                     keep_only_largest, segmentation_method)
+                     keep_only_largest, segmentation_method,
+                     replace_at_runtime,
+                     thresholding_method, options_do,
+                     options_iteration, options_count,
+                     fill_holes_before_median)
                 // upload the table on OMERO
                 super_table.setName(table_name + "_global")
                 robustlyAddAndReplaceTable(well_wrp, user_client, super_table)
                 break
             case "plate":
                 PlateWrapper plate_wrp = robustlyGetOne(id, "plate", user_client)
-                if (use_existing) {
+                if (use_existing || replace_at_runtime) {
                     // Remove the tables associated to the plate
                     robustlyDeleteTables(plate_wrp, user_client)
                 } else if (rescue) {
@@ -1304,13 +1403,17 @@ if (user_client.isConnected()) {
                      ilastik_project, ilastik_project_type,
                      ilastik_label_OI,
                      probability_threshold, radius_median, min_size_particle,
-                     get_spine, minimum_diameter, closeness_tolerance, min_similarity,
+                     get_spine, minimum_diameter_um, closeness_tolerance_um, min_similarity,
                      ilastik_project_short_name,
                      output_directory,
                      headless_mode, debug, tool_version,
                      use_existing, "plate", rescue,
                      ilastik_label_BG, probability_threshold_BG,
-                     keep_only_largest, segmentation_method)
+                     keep_only_largest, segmentation_method,
+                     replace_at_runtime,
+                     thresholding_method, options_do,
+                     options_iteration, options_count,
+                     fill_holes_before_median)
                 // upload the table on OMERO
                 super_table.setName(table_name + "_global")
                 robustlyAddAndReplaceTable(plate_wrp, user_client, super_table)
