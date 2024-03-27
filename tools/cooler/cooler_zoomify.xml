@@ -1,0 +1,47 @@
+<tool id="cooler_zoomify" name="cooler_zoomify" version="@VERSION@+galaxy0" profile="18.01">
+  <description>Copy and balance a cool file.</description>
+  <macros>
+    <import>macros.xml</import>
+  </macros>
+  <expand macro="requirements" />
+  <expand macro="stdio" />
+  <command detect_errors="exit_code"><![CDATA[
+    cooler zoomify -p \${GALAXY_SLOTS:-4}
+    -c $chunksize
+    -r '$resolution'
+    -o '$output'
+    '$input'
+    ]]>
+  </command>
+  <inputs>
+    <param name="input" multiple="false" type="data" format="cool" label="Select the input cool file to zoomify."/>
+    <param argument="-c" type="integer" value="10000000" label="Number of pixels dedicated to each process"/>
+    <param argument="-r" type="text" value="B" label="Resultion" help="Comma-separated list of target resolutions. Use suffixes B or N to specify a progression: B for binary (geometric steps of factor 2), N for nice (geometric steps of factor 10 interleaved with steps of 2 and 5). Examples: 1000B=1000,2000,4000,8000,... 1000N=1000,2000,5000,10000,... 5000N=5000,10000,25000,50000,... 4DN is an alias for 1000,2000,5000N">
+        <validator type="regex">[BDN0-9,]+</validator>
+        </param>
+  </inputs>
+  
+  <outputs>
+    <data type="data" format="mcool" name="output" label="Multi-resolution mcool file from $input.name"/>
+  </outputs>
+  
+  <tests>
+    <test>
+      <param name="input" value="input.cool" ftype="cool"/>
+      <output name="output" file="output.mcool" compare="sim_size"/>
+    </test>
+  </tests> 
+
+  <help>
+    **cooler zoomify**
+    tool developped by mirnylab
+    see https://github.com/mirnylab/cooler
+    and https://cooler.readthedocs.io/en/latest/cli.html#cooler-balance
+    
+    command-line::
+    
+      cooler zoomify -p \${GALAXY_SLOTS:-1} -c $chunksize -r '$resolution'
+    
+  </help>
+  <expand macro="citation_cooler" />
+</tool>
