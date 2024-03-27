@@ -1,5 +1,5 @@
-<tool id="cooler_zoomify" name="cooler_zoomify" version="@VERSION@+galaxy0" profile="18.01">
-  <description>Copy and balance a cool file.</description>
+<tool id="cooler_zoomify" name="Cooler zoomify" version="@VERSION@+galaxy0" profile="18.01">
+  <description>Generate a multi-resolution cooler file by coarsening</description>
   <macros>
     <import>macros.xml</import>
   </macros>
@@ -7,8 +7,8 @@
   <expand macro="stdio" />
   <command detect_errors="exit_code"><![CDATA[
     cooler zoomify -p \${GALAXY_SLOTS:-4}
-    -c $chunksize
-    -r '$resolution'
+    -c $c
+    -r $r
     -o '$output'
     '$input'
     ]]>
@@ -34,14 +34,8 @@
 
   <help>
     **cooler zoomify**
-    tool developped by mirnylab
-    see https://github.com/mirnylab/cooler
-    and https://cooler.readthedocs.io/en/latest/cli.html#cooler-balance
-    
-    command-line::
-    
-      cooler zoomify -p \${GALAXY_SLOTS:-1} -c $chunksize -r '$resolution'
-    
+    Generate a multi-resolution cooler file by coarsening
+    Given a set of resolutions, generate a multi-cooler file from a cooler for visualisation with higlass.
   </help>
   <expand macro="citation_cooler" />
 </tool>
