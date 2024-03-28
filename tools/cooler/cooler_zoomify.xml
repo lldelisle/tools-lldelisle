@@ -8,7 +8,7 @@
   <command detect_errors="exit_code"><![CDATA[
     cooler zoomify -p \${GALAXY_SLOTS:-4}
     -c $c
-    -r $r
+    -r '$r'
     -o '$output'
     '$input'
     ]]>
