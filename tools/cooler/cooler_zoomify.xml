@@ -28,7 +28,7 @@
   <tests>
     <test>
       <param name="input" value="input.cool" ftype="cool"/>
-      <output name="output" file="output.mcool" compare="sim_size"/>
+      <output name="output" file="output.mcool" ftype="mcool" compare="sim_size"/>
     </test>
   </tests> 
 
