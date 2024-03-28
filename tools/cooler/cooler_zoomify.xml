@@ -14,7 +14,7 @@
     ]]>
   </command>
   <inputs>
-    <param name="input" multiple="false" type="data" format="cool" label="Select the input cool file to zoomify."/>
+    <param name="input" multiple="false" type="data" format="cool" label="Select the input cool file to zoomify"/> 
     <param argument="-c" type="integer" value="10000000" label="Number of pixels dedicated to each process"/>
     <param argument="-r" type="text" value="B" label="Resultion" help="Comma-separated list of target resolutions. Use suffixes B or N to specify a progression: B for binary (geometric steps of factor 2), N for nice (geometric steps of factor 10 interleaved with steps of 2 and 5). Examples: 1000B=1000,2000,4000,8000,... 1000N=1000,2000,5000,10000,... 5000N=5000,10000,25000,50000,... 4DN is an alias for 1000,2000,5000N">
         <validator type="regex">[BDN0-9,]+</validator>
@@ -22,7 +22,7 @@
   </inputs>
   
   <outputs>
-    <data type="data" format="mcool" name="output" label="Multi-resolution mcool file from $input.name"/>
+    <data format="mcool" name="output" label="Multi-resolution mcool file from $input.name"/>
   </outputs>
   
   <tests>
