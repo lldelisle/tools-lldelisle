@@ -29,6 +29,7 @@
     <test>
       <param name="input" value="input.cool" ftype="cool"/>
       <output name="output" file="output.mcool" ftype="mcool" compare="sim_size"/>
+      <param name="r" value="1000000,2000000,4000000"/>
     </test>
   </tests> 
 
