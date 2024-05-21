@@ -1,0 +1,7 @@
+categories:
+   - Imaging
+description: Get full images from omero
+name: omero_get_full_images
+owner: lldelisle
+long_description: Uses a groovy to get full images from OMERO.
+remote_repository_url: https://github.com/lldelisle/tools-lldelisle/tree/master/tools/omero_get_full_images

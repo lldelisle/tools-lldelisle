@@ -1,0 +1,115 @@
+<tool id="omero_get_full_images" name="Omero: get full images" profile="20.01" version="@TOOL_VERSION@+galaxy0">
+    <macros>
+        <token name="@TOOL_VERSION@">20240521</token>
+    </macros>
+    <requirements>
+        <requirement type="package" version="20231211">fiji</requirement>
+        <requirement type="package" version="5.8.3">fiji-omero_ij</requirement>
+        <requirement type="package" version="5.18.0">fiji-simple_omero_client</requirement>
+    </requirements>
+    <command detect_errors="exit_code"><![CDATA[
+        #if $omero_instance_type.omero_instance == "priv":
+            ## the user wants to use a non-public OMERO instance
+            ## check if credentials are set in the user-preferences, if not warn the user and exit
+            #set $username = $__user__.extra_preferences.get('omero_account|username', "")
+            #set $password = $__user__.extra_preferences.get('omero_account|password', "")
+
+            #if $omero_instance_type.galaxy_test_param != 'true' and ($username == "" or $password ==""):
+                echo "OMERO connection credentials are empty. Set your credentials via: User -> Preferences -> Manage Information" 1>&2 &&
+                exit 1 &&
+            #end if
+        #end if
+        mkdir output &&
+        ImageJ --ij2 --headless --console --run '$__tool_directory__/'omero_get_full_images.groovy 
+            'USERNAME="",PASSWORD="",credentials="${credentials}",host="${omero_instance_type.omero_host}",port="${omero_instance_type.omero_port}",object_type="${omero_object.object_type}",id="${omero_object.omero_id}",output_directory="output"' > output.log
+        ]]>
+    </command>
+    <configfiles>
+        <configfile name="credentials"><![CDATA[#if $omero_instance_type.omero_instance == 'idr' or ($omero_instance_type.omero_instance =='priv' and $omero_instance_type.galaxy_test_param == 'true'):
+    ## as a test for a private instance we actually use a public instance, but with credentials
+    #set $username = 'public'
+    #set $password = 'public'
+#else:
+    #set $username = $__user__.extra_preferences.get('omero_account|username', "")
+    #set $password = $__user__.extra_preferences.get('omero_account|password', "")
+#end if
+$username
+$password
+        ]]></configfile>
+    </configfiles>
+    <inputs>
+        <conditional name="omero_instance_type">
+            <param name="omero_instance" type="select" label="Which OMERO instance to connect?"
+                   help="By default, the tool will request children ID from IDR. If you 
+                   need to connect to your own instance, set your connection username and password from User->Preference->Manage Information" >
+                <option value="idr">IDR</option>
+                <option value="priv">other OMERO instance</option>
+            </param>
+            <when value="priv">
+                <param name="omero_host" type="text" label="OMERO host URL">
+                    <validator type="regex" message="Enter a valid host location, for example, your.omero.server">^[a-zA-Z0-9._-]*$</validator>
+                    <validator type="expression" message="No two dots (..) allowed">'..' not in value</validator>
+                </param>
+                <param name="omero_port" type="integer" value="4064" label="Omero port" />
+                <param name="galaxy_test_param" type="hidden" value="false" />
+            </when>
+            <when value="idr">
+                <param name="omero_host" type="hidden" value="idr.openmicroscopy.org"/>
+                <param name="omero_port" type="hidden" value="4064" />
+            </when>
+        </conditional>
+        <conditional name="omero_object">
+            <param name="object_type" type="select" label="Type of object to analyze">
+                <option value="image">Single Omero Image</option>
+                <option value="well">All images of a Well</option>
+                <option value="plate">All images of a Plate</option>
+                <option value="dataset">All images of a Dataset</option>
+            </param>
+            <when value="image">
+                <param name="omero_id" type="integer" value="" label="Image ID on omero" />
+            </when>
+            <when value="well">
+                <param name="omero_id" type="integer" value="" label="Well ID on omero" />
+            </when>
+            <when value="plate">
+                <param name="omero_id" type="integer" value="" label="Plate ID on omero" />
+            </when>
+            <when value="dataset">
+                <param name="omero_id" type="integer" value="" label="Dataset ID on omero" />
+            </when>
+        </conditional>
+    </inputs>
+    <outputs>
+        <data name="logfile" format="txt" from_work_dir="output.log" label="${tool.name} on ${omero_object.object_type} ID ${omero_object.omero_id}: logfile">
+        </data>
+        <collection name="images" type="list" label="${tool.name} on ${omero_object.object_type} ID ${omero_object.omero_id}: Images">
+            <discover_datasets pattern="(?P&lt;designation&gt;.+)\.tiff" directory="output" format="tiff"/>
+        </collection>
+    </outputs>
+    <tests>
+        <test expect_num_outputs="2">
+            <conditional name="omero_instance_type">
+                <param name="omero_instance" value="idr"/>
+            </conditional>
+            <conditional name="omero_object">
+                <param name="object_type" value="image"/>
+                <param name="omero_id" value="14788706"/>
+            </conditional>
+            <output_collection name="images" type="list" count="1">
+                <element name="15303_CS20_PAS">
+                    <assert_contents>
+                        <has_size value="48063821" delta="1000000"/>
+                    </assert_contents>
+                </element>
+            </output_collection>
+        </test>
+    </tests>
+    <help>
+    <![CDATA[
+**Overview**
+
+This tool will get images from omero and write them to disk. It uses ImageJ.
+
+]]>
+    </help>
+</tool>
