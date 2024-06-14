@@ -1,7 +1,7 @@
 <tool id="omero_get_children_ids" name="Omero" version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@" profile="20.01" license="MIT">
     <description>Get children ids</description>
     <macros>
-        <token name="@TOOL_VERSION@">0.1.0</token>
+        <token name="@TOOL_VERSION@">0.2.0</token>
         <token name="@VERSION_SUFFIX@">0</token>
     </macros>
     <requirements>
@@ -29,6 +29,7 @@
         --omero-id '$omero_object.omero_id'
         --final-object-type '$omero_object.final_object_type'
         --output '$output'
+        $get_name
     ]]></command>
     <configfiles>
         <configfile name="credentials"><![CDATA[
@@ -105,6 +106,7 @@
                 </param>
             </when>
         </conditional>
+        <param name="get_name" type="boolean" truevalue="--get-name" falsevalue="" checked="false" label="Retrieve names into a second column" />
     </inputs>
     <outputs>
         <data name="output" format="tabular" label="All ${omero_object.final_object_type} from ${omero_object.parent_object_type} ID ${omero_object.omero_id}" />
@@ -122,6 +124,23 @@
             <output name="output">
                 <assert_contents>
                     <has_line line="14263182"/>
+                    <has_n_lines n="4"/>
+                </assert_contents>
+            </output>
+        </test>
+        <test expect_num_outputs="1">
+            <conditional name="omero_instance_type">
+                <param name="omero_instance" value="idr"/>
+            </conditional>
+            <conditional name="omero_object">
+                <param name="parent_object_type" value="well"/>
+                <param name="omero_id" value="2184933"/>
+                <param name="final_object_type" value="image"/>
+            </conditional>
+            <param name="get_name" value="true"/>
+            <output name="output">
+                <assert_contents>
+                    <has_text text="003012001.flex [Well A-1; Field #1]"/>
                     <has_n_lines n="4"/>
                 </assert_contents>
             </output>
@@ -262,6 +281,8 @@
 **What it does**
 
 This tool will create a file with the list of all children ids of a given omero object.
+
+If the option is set, it can also retrive the names.
 
     ]]></help>
 </tool>

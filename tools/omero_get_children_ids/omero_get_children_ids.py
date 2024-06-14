@@ -20,22 +20,29 @@ def get_omero_credentials(config_file):
     return (omero_username, omero_password)
 
 
-def recursive_get_children_id(parent_object, final_object_type):
+def recursive_get_children_id(parent_object, final_object_type, get_name):
     output = []
     if parent_object.OMERO_CLASS == 'WellSample':
-        return [parent_object.getImage().id]
+        if get_name:
+            return [f"{parent_object.getImage().id}\t{parent_object.getImage().getName()}"]
+        else:
+            return [parent_object.getImage().id]
     for children in parent_object.listChildren():
         if children.OMERO_CLASS == final_object_type.title():
-            output.append(children.id)
+            if get_name:
+                output.append(f"{children.id}\t{children.getName()}")
+            else:
+                output.append(children.id)
         else:
             # We need to go one step further
-            output += recursive_get_children_id(children, final_object_type)
+            output += recursive_get_children_id(children, final_object_type, get_name)
     return output
 
 
 def get_children_ids(parent_object_type,
                      omero_id,
                      final_object_type,
+                     get_name,
                      omero_username,
                      omero_password,
                      omero_host="idr.openmicroscopy.org",
@@ -46,7 +53,7 @@ def get_children_ids(parent_object_type,
     ) as conn:
         # Retrieve omero object
         parent_object = conn.getObject(parent_object_type.title(), omero_id)
-        return recursive_get_children_id(parent_object, final_object_type)
+        return recursive_get_children_id(parent_object, final_object_type, get_name)
 
 
 if __name__ == "__main__":
@@ -62,12 +69,15 @@ if __name__ == "__main__":
                    type=int, default=None, required=True)
     p.add_argument("--final-object-type", dest="final_object_type",
                    type=str, default=None, required=True)
+    p.add_argument("--get-name", dest="get_name",
+                   action="store_true", default=False)
     p.add_argument("--output", type=str, default=None, required=True)
     args = p.parse_args()
     children_ids = get_children_ids(
         args.parent_object_type,
         args.omero_id,
         args.final_object_type,
+        args.get_name,
         *get_omero_credentials(args.config_file),
         omero_host=args.omero_host,
         omero_secured=args.omero_secured,
