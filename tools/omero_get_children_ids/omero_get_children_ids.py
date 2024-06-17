@@ -24,7 +24,8 @@ def recursive_get_children_id(parent_object, final_object_type, get_name):
     output = []
     if parent_object.OMERO_CLASS == 'WellSample':
         if get_name:
-            return [f"{parent_object.getImage().id}\t{parent_object.getImage().getName()}"]
+            parent_image = parent_object.getImage()
+            return [f"{parent_image.id}\t{parent_image.getName()}"]
         else:
             return [parent_object.getImage().id]
     for children in parent_object.listChildren():
@@ -35,7 +36,9 @@ def recursive_get_children_id(parent_object, final_object_type, get_name):
                 output.append(children.id)
         else:
             # We need to go one step further
-            output += recursive_get_children_id(children, final_object_type, get_name)
+            output += recursive_get_children_id(
+                children, final_object_type, get_name
+            )
     return output
 
 
@@ -53,7 +56,9 @@ def get_children_ids(parent_object_type,
     ) as conn:
         # Retrieve omero object
         parent_object = conn.getObject(parent_object_type.title(), omero_id)
-        return recursive_get_children_id(parent_object, final_object_type, get_name)
+        return recursive_get_children_id(
+            parent_object, final_object_type, get_name
+        )
 
 
 if __name__ == "__main__":
