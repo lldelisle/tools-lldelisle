@@ -26,7 +26,7 @@
  * and Lucille Delisle, EPFL - SV - UPDUB
  * and Pierre Osteil, EPFL - SV - UPDUB
  *
- * Last modification: 2023-12-21
+ * Last modification: 2024-07-05
  *
  * = COPYRIGHT =
  * © All rights reserved. ECOLE POLYTECHNIQUE FEDERALE DE LAUSANNE, Switzerland, BioImaging And Optics Platform (BIOP), 2023
@@ -86,6 +86,7 @@
 #@ String(label="Objective", choices={"4x","10x","20x"}) objectiveChoice
 #@ String(label="Plate name", value="Experiment:0") plateName
 #@ String(label="common Key Values formatted as key1=value1;key2=value2", value="") commonKeyValues
+#@ Boolean(label="Round relative time in hours to integer", value=true) roundRelativeTimeHour
 #@ Boolean(label="Ignore Compound concentration from plateMap", value=true) ignoreConcentration
 #@ Boolean(label="Ignore Cell passage number from plateMap", value=true) ignorePassage
 #@ Boolean(label="Ignore Cell seeding concentration from plateMap", value=true) ignoreSeeding
@@ -182,7 +183,7 @@ try {
 	well.each{ input ->
 		IJ.run("Close All", "")
 
-		List<ImagePlus> final_imp_list = process_well(base_dir, input, n_images_per_well) //, perform_bc, mediaChangeTime )
+		List<ImagePlus> final_imp_list = process_well(base_dir, input, n_images_per_well, roundRelativeTimeHour) //, perform_bc, mediaChangeTime )
 		if (!final_imp_list.isEmpty()) {
 			wellSamplesMap.put(input, final_imp_list)
 			for(ImagePlus final_imp : final_imp_list){
@@ -275,7 +276,7 @@ return
  * ***************************************************************************************************************
  */
 
-def process_well(baseDir, input_wellId, n_image_per_well){ //, perform_bc, mediaChangeTime){
+def process_well(baseDir, input_wellId, n_image_per_well, roundRelativeTimeHour){ //, perform_bc, mediaChangeTime){
 	File bf_dir = baseDir.listFiles().find{ it =~ /.*Phase.*/}
 	File green_dir = baseDir.listFiles().find{ it =~ /.*Green.*/}
 	File red_dir = baseDir.listFiles().find{ it =~ /.*Red.*/}
@@ -369,7 +370,7 @@ def process_well(baseDir, input_wellId, n_image_per_well){ //, perform_bc, media
 							for (int ti = 2; ti<= nT; ti++) {
 								// Process each frame starting at 2
 								single_channel_imp.setSlice(ti)
-								int hours = getHoursFromImp(single_channel_imp, stack, dateTime_ref, date_pattern)
+								hours = getHoursFromImp(single_channel_imp, stack, dateTime_ref, date_pattern, roundRelativeTimeHour)
 								if (rel_acq_hour == "") {
 									rel_acq_hour = "" + hours
 								} else {
@@ -864,12 +865,15 @@ def getDate(String label, Pattern date_pattern){
 }
 
 // Returns the number of hours
-def getHoursFromImp(ImagePlus imp, ImageStack stack, LocalDateTime dateTime_ref, Pattern date_pattern){
+def getHoursFromImp(ImagePlus imp, ImageStack stack, LocalDateTime dateTime_ref, Pattern date_pattern, Boolean roundRelativeTimeHour){
 	int currentSlice = imp.getCurrentSlice()
 	String label = stack.getSliceLabel(currentSlice)
 	LocalDateTime dateTime = getDate(label, date_pattern)
 	if (dateTime != null) {
-		return ChronoUnit.HOURS.between(dateTime_ref, dateTime) as int
+		if roundRelativeTimeHour:
+			return ChronoUnit.HOURS.between(dateTime_ref, dateTime) as int
+		else:
+			return ChronoUnit.HOURS.between(dateTime_ref, dateTime)
 	} else {
 		return -1
 	}
