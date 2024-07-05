@@ -1135,7 +1135,7 @@ if (user_client.isConnected()) {
                 try {
                     image_wpr = user_client.getImage(id)
                 } catch(Exception e) {
-                    throw Exception("Could not retrieve the image, please check the id.")
+                    throw new Exception("Could not retrieve the image, please check the id.")
                 }
                 processImage(user_client, image_wpr,
                              output_directory, quantif_ch,
@@ -1147,7 +1147,7 @@ if (user_client.isConnected()) {
                 try {
                     dataset_wpr = user_client.getDataset(id)
                 } catch(Exception e) {
-                    throw Exception("Could not retrieve the dataset, please check the id.")
+                    throw new Exception("Could not retrieve the dataset, please check the id.")
                 }
                 processDataset(user_client, dataset_wpr,
                                output_directory, quantif_ch,
@@ -1163,7 +1163,7 @@ if (user_client.isConnected()) {
                 try {
                     well_wpr = user_client.getWells(id)[0]
                 } catch(Exception e) {
-                    throw Exception("Could not retrieve the well, please check the id.")
+                    throw new Exception("Could not retrieve the well, please check the id.")
                 }
                 processSingleWell(user_client, well_wpr,
                                   output_directory, quantif_ch,
@@ -1179,7 +1179,7 @@ if (user_client.isConnected()) {
                 try {
                     plate_wpr = user_client.getPlates(id)[0]
                 } catch(Exception e) {
-                    throw Exception("Could not retrieve the plate, please check the id.")
+                    throw new Exception("Could not retrieve the plate, please check the id.")
                 }
                 processSinglePlate(user_client, plate_wpr,
                                    output_directory, quantif_ch,

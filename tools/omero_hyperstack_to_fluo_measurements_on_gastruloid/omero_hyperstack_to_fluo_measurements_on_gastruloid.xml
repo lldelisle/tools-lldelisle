@@ -5,7 +5,7 @@
     </macros>
     <requirements>
         <requirement type="package" version="20220414">fiji</requirement>
-        <requirement type="package" version="5.8.0">fiji-omero_ij</requirement>
+        <requirement type="package" version="5.8.3">fiji-omero_ij</requirement>
         <requirement type="package" version="5.12.2">fiji-simple_omero_client</requirement>
     </requirements>
     <command detect_errors="exit_code"><![CDATA[
