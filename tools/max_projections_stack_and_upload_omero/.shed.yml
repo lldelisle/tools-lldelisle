@@ -1,0 +1,7 @@
+categories:
+   - Imaging
+description: Combine images from max projections to stack and upload to the omero server
+name: max_projections_stack_and_upload_omero
+owner: lldelisle
+long_description: Uses a groovy to combine images and a bash script to upload as dataset to the omero server
+remote_repository_url: https://github.com/lldelisle/tools-lldelisle/tree/master/tools/max_projections_stack_and_upload_omero

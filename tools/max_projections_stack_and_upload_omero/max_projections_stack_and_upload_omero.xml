@@ -1,0 +1,132 @@
+<tool id="max_projections_stack_and_upload_omero" name="Stack MaxProj" version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@" profile="20.01" license="BSD-3">
+    <description>And upload to omero</description>
+    <macros>
+        <token name="@TOOL_VERSION@">20241212</token>
+        <token name="@VERSION_SUFFIX@">0</token>
+    </macros>
+    <requirements>
+        <requirement type="package" version="20240614">Fiji</requirement>
+        <requirement type="package" version="5.19.4">omero-py</requirement>
+        <requirement type="package" version="5.3.1">gawk</requirement>
+    </requirements>
+    <command detect_errors="exit_code"><![CDATA[
+        #import os
+        ## the user wants to use a non-public OMERO instance
+        ## check if credentials are set in the user-preferences, if not warn the user and exit
+        #set $username = $__user__.extra_preferences.get('omero_account|username', "")
+        #set $password = $__user__.extra_preferences.get('omero_account|password', "")
+        #if str($upload_omero.upload_omero_select) == "yes":
+            #if ($username == "" or $password ==""):
+                echo "OMERO connection credentials are empty. Set your credentials via: User -> Preferences -> Manage Information" 1>&2 &&
+                exit 1 &&
+            #end if
+        #end if
+        
+        ## Prefix to directories provided by users
+        #set $prefix = "/data/mount_s3/image_storage/"
+        ## Prepare output directory
+        mkdir output &&
+        ## Use ln -s for input
+        #if not os.path.isdir($prefix + "/" + str($base_dir)):
+            echo "Base dir $base_dir does not exists" &&
+            exit 1 &&
+        #end if
+        ln -s '${prefix}/${base_dir}/' input &&
+        ## Run the groovy
+        ImageJ --ij2 --headless --console --run '$__tool_directory__/'stack_max_projs.groovy 
+            'base_dir="input/",output_dir="output/",suffix_white="$suffix_white",suffix_fluo="$suffix_fluo",pattern_green="$pattern_green",pattern_red="$pattern_red"' > output.log
+        ## Upload to omero
+        #if str($upload_omero.upload_omero_select) == "yes":
+            && bash '$__tool_directory__/'upload_omero.sh '$upload_omero.omero_host' '$credentials' '$upload_omero.cond_create.to_create' '$upload_omero.cond_create.project_name_or_id' '$upload_omero.cond_create.dataset_name_or_id' >> output.log
+        #end if
+    ]]></command>
+    <configfiles>
+        <configfile name="credentials"><![CDATA[
+    #set $username = $__user__.extra_preferences.get('omero_account|username', "")
+    #set $password = $__user__.extra_preferences.get('omero_account|password', "")
+$username
+$password
+        ]]></configfile>
+    </configfiles>
+    <inputs>
+        <param name="base_dir" type="text" value="" label="Directory on s3 with all directories" help="For example Pierre/ViventisLightSheet/20220617_104242_MixCell_50pc_20pc_72hstart/"/>
+        <param name="suffix_white" type="text" value="_BF_max" label="Suffix for white channel directory" help="Leave empty if you are not interested"/>
+        <param name="suffix_fluo" type="text" value="_Fluo_max" label="Suffix for fluo channel(s) directory" help="Leave empty if you are not interested"/>
+        <param name="pattern_green" type="text" value="_H2B-GFP" label="Pattern for green channel images" help="Leave empty if you are not interested"/>
+        <param name="pattern_red" type="text" value="_RFP670" label="Pattern for red channel images" help="Leave empty if you are not interested"/>
+        <conditional name="upload_omero">
+            <param name="upload_omero_select" type="select" label="Upload your images to omero?" >
+                <option value="yes">Yes</option>
+                <option value="no">No</option>
+            </param>
+            <when value="yes">
+                <param name="omero_host" type="text" label="OMERO host URL">
+                    <validator type="regex" message="Enter a valid host location, for example, your.omero.server">^[a-zA-Z0-9._-]*$</validator>
+                    <validator type="expression" message="No two dots (..) allowed">'..' not in value</validator>
+                </param>
+                <param name="plateName" type="text" value="Experiment:0" label="Name of the plate (on omero)" />
+                <conditional name="cond_create">
+                    <param name="to_create" type="select" label="Create the project/dataset on OMERO or use existing one?">
+                        <option value="both">Create a new Project and a new Dataset</option>
+                        <option value="dataset">Use an existing Project and create in a new Dataset</option>
+                        <option value="none">Use an existing Dataset</option>
+                    </param>
+                    <when value="both">
+                        <param name="project_name_or_id" type="text" value="MyNewProject" label="Name of the project (on omero)" />
+                        <param name="dataset_name_or_id" type="text" value="MyNewDataset" label="Name of the dataset (on omero)" />
+                    </when>
+                    <when value="dataset">
+                        <param name="project_name_or_id" type="integer" min="1" value="12" label="ID of the project (on omero)" />
+                        <param name="dataset_name_or_id" type="text" value="MyNewDataset" label="Name of the dataset (on omero)" />
+                    </when>
+                    <when value="none">
+                        <param name="project_name_or_id" type="integer" min="1" value="12" label="ID of the project (on omero)" />
+                        <param name="dataset_name_or_id" type="integer" min="1" value="56" label="ID of the dataset (on omero)" />
+                    </when>
+                </conditional>
+                <param name="get_stacks_in_galaxy" type="boolean" checked="false" label="Get stacks in galaxy" />
+            </when>
+            <when value="no">
+                <param name="get_stacks_in_galaxy" type="hidden" value="true"/>
+            </when>
+        </conditional>
+    </inputs>
+    <outputs>
+        <data name="logfile" format="txt" from_work_dir="output.log" label="${tool.name} on ${on_string}: logfile" />
+        <collection name="list_output" type="list" label="${tool.name} on ${on_string}: Stacks">
+            <discover_datasets pattern="(?P&lt;designation&gt;.+)\.tif" directory="output/" ext="tiff" />
+            <filter>upload_omero['get_stacks_in_galaxy']</filter>
+        </collection>
+    </outputs>
+    <help><![CDATA[
+
+.. class:: infomark
+
+**What it does**
+
+It will use images coming from the Viventis Lightsheet which are on the s3 server to make a "T-stack" per well and upload it to omero.
+This wrapper uses ImageJ to combine images (with a groovy) and omero-py to import the images.
+
+Usage
+.....
+
+
+**Input**
+
+- One path with directory with data
+- suffix_white which allow to find the directories with the 'Grays' channel and extract the `unique identifier`
+- suffix_fluo which allow to find the directories with the fluo channels (Red and Green) and extract the `unique identifier` to be able to merge with the 'Grays'
+- pattern_green which allow to filter for green images in the fluo directory.
+- pattern_red which allow to filter for red images in the fluo directory.
+- URL of omero
+- Name/ID of the Project in omero
+- Name/ID of the Dataset in omero
+- Whether the Dataset/Projects should be created
+
+**Output**
+
+- A log file with info
+- Optionally all images as T-stack
+- On OMERO your images all channels combined and all time points combined
+    ]]></help>
+</tool>
