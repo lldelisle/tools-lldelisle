@@ -29,7 +29,7 @@
  */
 
 // Version number = date of last modif
-VERSION = "20241213.1"
+VERSION = "20241213.2"
 
 /**
  * *****************************************************************************************************************
@@ -116,6 +116,7 @@ try {
 
 	// Explore the HashMap and save to tiff
 	for(String unique_identifier : samplesMap.keySet()){
+		println "Merging " + unique_identifier
 		// get the channel map
 		Map<String, ImagePlus> channelsMap = samplesMap.get(unique_identifier)
 		ArrayList<String> channels = []
@@ -135,11 +136,11 @@ try {
 			}
 		}
 		
+		ImagePlus final_imp
 		if (all_compatibles) {
 			// Merge all
 			ImagePlus merged_imps = Concatenator.run(current_images as ImagePlus[])
 			// Re-order to make a multi-channel, time-lapse image
-			ImagePlus final_imp
 			if (channels.size() == 1 && ref_nT == 1) {
 				final_imp = merged_imps
 			} else {

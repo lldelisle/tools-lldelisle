@@ -1,5 +1,10 @@
 # CHANGELOG
 
+## 20241213.2
+
+- Fixed a variable definition in the groovy
+- Do not ask for the Project ID when the Dataset exists
+
 ## 20241213.1
 
 - Fixed a forgotten nT

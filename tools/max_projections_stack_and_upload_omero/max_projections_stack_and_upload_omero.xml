@@ -1,7 +1,7 @@
 <tool id="max_projections_stack_and_upload_omero" name="Stack MaxProj" version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@" profile="20.01" license="BSD-3">
     <description>And upload to omero</description>
     <macros>
-        <token name="@TOOL_VERSION@">20241213.1</token>
+        <token name="@TOOL_VERSION@">20241213.2</token>
         <token name="@VERSION_SUFFIX@">0</token>
     </macros>
     <requirements>
@@ -79,7 +79,7 @@ $password
                         <param name="dataset_name_or_id" type="text" value="MyNewDataset" label="Name of the dataset (on omero)" />
                     </when>
                     <when value="none">
-                        <param name="project_name_or_id" type="integer" min="1" value="12" label="ID of the project (on omero)" />
+                        <param name="project_name_or_id" type="hidden" value="none"/>
                         <param name="dataset_name_or_id" type="integer" min="1" value="56" label="ID of the dataset (on omero)" />
                     </when>
                 </conditional>
