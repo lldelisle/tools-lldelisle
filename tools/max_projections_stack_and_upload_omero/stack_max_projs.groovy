@@ -29,7 +29,7 @@
  */
 
 // Version number = date of last modif
-VERSION = "20241213"
+VERSION = "20241213.1"
 
 /**
  * *****************************************************************************************************************
@@ -140,7 +140,7 @@ try {
 			ImagePlus merged_imps = Concatenator.run(current_images as ImagePlus[])
 			// Re-order to make a multi-channel, time-lapse image
 			ImagePlus final_imp
-			if (channels.size() == 1 && nT == 1) {
+			if (channels.size() == 1 && ref_nT == 1) {
 				final_imp = merged_imps
 			} else {
 				try {

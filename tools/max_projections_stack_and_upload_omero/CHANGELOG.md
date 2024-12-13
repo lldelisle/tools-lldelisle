@@ -1,5 +1,9 @@
 # CHANGELOG
 
+## 20241213.1
+
+- Fixed a forgotten nT
+
 ## 20241213
 
 - Remove unused input plateName in wrapper.

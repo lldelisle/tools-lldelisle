@@ -1,7 +1,7 @@
 <tool id="max_projections_stack_and_upload_omero" name="Stack MaxProj" version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@" profile="20.01" license="BSD-3">
     <description>And upload to omero</description>
     <macros>
-        <token name="@TOOL_VERSION@">20241213</token>
+        <token name="@TOOL_VERSION@">20241213.1</token>
         <token name="@VERSION_SUFFIX@">0</token>
     </macros>
     <requirements>
