@@ -29,7 +29,7 @@
  */
 
 // Version number = date of last modif
-VERSION = "20241212"
+VERSION = "20241213"
 
 /**
  * *****************************************************************************************************************
@@ -97,9 +97,9 @@ try {
 							" filter=" + fluo_pattern_list[i]
 						)
 					)
+					// println samplesMap.get(unique_identifier).get(fluo_channels_list[i]).getDimensions()
 					if (!GraphicsEnvironment.isHeadless()){
-						samplesMap.get(unique_identifier).get(
-						fluo_channels_list[i]).show()
+						samplesMap.get(unique_identifier).get(fluo_channels_list[i]).show()
 					}
 				}
 			}
@@ -107,9 +107,9 @@ try {
 			// It is easy as all images are used
 			println "Processing " + unique_identifier + " Greys"
 			samplesMap.get(unique_identifier).put(final_color, FolderOpener.open(current_directory.getAbsolutePath()))
+			// println samplesMap.get(unique_identifier).get(final_color).getDimensions()
 			if (!GraphicsEnvironment.isHeadless()){
-				samplesMap.get(unique_identifier).get(
-				final_color).show()
+				samplesMap.get(unique_identifier).get(final_color).show()
 			}
 		}
 	}
@@ -120,27 +120,55 @@ try {
 		Map<String, ImagePlus> channelsMap = samplesMap.get(unique_identifier)
 		ArrayList<String> channels = []
 		ArrayList<ImagePlus> current_images = []
+		int ref_nT = 0
+		boolean all_compatibles = true
 
 		for(String channel : channelsMap.keySet()){
 			channels.add(channel)
 			current_images.add(channelsMap.get(channel))
+			if (ref_nT == 0) {
+				ref_nT = channelsMap.get(channel).nSlices
+			} else {
+				if (ref_nT != channelsMap.get(channel).nSlices) {
+					all_compatibles = false
+				}
+			}
 		}
-		// Get number of time:
-		int nT = current_images[0].nSlices
-
-		// Merge all
-		ImagePlus merged_imps = Concatenator.run(current_images as ImagePlus[])
-		// Re-order to make a multi-channel, time-lapse image
-		ImagePlus final_imp
-		if (channels.size() == 1 && nT == 1) {
-			final_imp = merged_imps
+		
+		if (all_compatibles) {
+			// Merge all
+			ImagePlus merged_imps = Concatenator.run(current_images as ImagePlus[])
+			// Re-order to make a multi-channel, time-lapse image
+			ImagePlus final_imp
+			if (channels.size() == 1 && nT == 1) {
+				final_imp = merged_imps
+			} else {
+				try {
+					final_imp = HyperStackConverter.toHyperStack(merged_imps, channels.size() , 1, ref_nT, "xytcz", "Color")
+					// set LUTs
+					(0..channels.size()-1).each{
+						final_imp.setC(it + 1)
+						IJ.run(final_imp, channels[it], "")
+						final_imp.resetDisplayRange()
+					}
+				} catch(Exception e) {
+					println "Could not create the hyperstack for " + unique_identifier + ": " + e
+					continue
+				}
+			}
 		} else {
-			final_imp = HyperStackConverter.toHyperStack(merged_imps, channels.size() , 1, nT, "xytcz", "Color")
-		}
-		// set LUTs
-		(0..channels.size()-1).each{
-			final_imp.setC(it + 1)
-			IJ.run(final_imp, channels[it], "")
+			println "Not all channels have the same number of slices:"
+			(0..channels.size()-1).each{
+				println "Channel " + channels[it] + " has " + current_images[it].getDimensions() + " whCZT."
+			}
+			if (channelsMap.containsKey("Greys")) {
+				println "Will keep only Greys channel"
+				final_imp = channelsMap.get("Greys")
+			} else {
+				println "Will keep only " + channels[0] + " channel"
+				final_imp = current_images[0]
+				IJ.run(final_imp, channels[0], "")
+			}
 			final_imp.resetDisplayRange()
 		}
 		// Save to tiff

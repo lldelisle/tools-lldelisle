@@ -1,7 +1,7 @@
 <tool id="max_projections_stack_and_upload_omero" name="Stack MaxProj" version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@" profile="20.01" license="BSD-3">
     <description>And upload to omero</description>
     <macros>
-        <token name="@TOOL_VERSION@">20241212</token>
+        <token name="@TOOL_VERSION@">20241213</token>
         <token name="@VERSION_SUFFIX@">0</token>
     </macros>
     <requirements>
@@ -64,7 +64,6 @@ $password
                     <validator type="regex" message="Enter a valid host location, for example, your.omero.server">^[a-zA-Z0-9._-]*$</validator>
                     <validator type="expression" message="No two dots (..) allowed">'..' not in value</validator>
                 </param>
-                <param name="plateName" type="text" value="Experiment:0" label="Name of the plate (on omero)" />
                 <conditional name="cond_create">
                     <param name="to_create" type="select" label="Create the project/dataset on OMERO or use existing one?">
                         <option value="both">Create a new Project and a new Dataset</option>
