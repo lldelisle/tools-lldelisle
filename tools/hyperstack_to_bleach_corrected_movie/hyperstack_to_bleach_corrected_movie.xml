@@ -1,7 +1,7 @@
 <tool id="hyperstack_to_bleach_corrected_movie" name="Generate movie from hyperstack" version="@TOOL_VERSION@+galaxy@VERSION_SUFFIX@" profile="20.01" license="MIT">
     <description>with bleach correction</description>
     <macros>
-        <token name="@TOOL_VERSION@">20230328</token>
+        <token name="@TOOL_VERSION@">20241220</token>
         <token name="@VERSION_SUFFIX@">0</token>
         <xml name="bleach_param">
             <param name="media_change_points" type="text" value="" label="Indices of frames just before the media was changed separated by comma (1-based excluding last index)">
@@ -24,6 +24,7 @@
     <command detect_errors="exit_code"><![CDATA[
         ImageJ --ij2 --headless --console --run '$__tool_directory__/'bleach_correction_movie.groovy 
             'image_filename="${image_filename}",starting_time_hour="${starting_time_hour}",x="${x}",y="${y}",frame_per_second="${frame_per_second}",bleach_cor_channel="${bleach_cor.bleach_cor_channel}",media_change_points="${bleach_cor.media_change_points}",normalize_to_first_chunk="${bleach_cor.normalize_to_first_chunk}",channels_in_film_comma="${channels_in_film}",display_scalebar="${scalebar.display_scalebar}",scale="${scalebar.scale}",min_grey="${minmax.min_grey}",max_grey="${minmax.max_grey}",min_green="${minmax.min_green}",max_green="${minmax.max_green}",min_red="${minmax.min_red}",max_red="${minmax.max_red}"' > output.log
+        && mv *.tif Movie.tif
         && ffmpeg -i *avi -vf "pad=ceil(iw/2)*2:ceil(ih/2)*2,format=yuv420p" Movie.mp4
     ]]></command>
     <inputs>
@@ -82,6 +83,7 @@
     <outputs>
         <data name="logfile" format="txt" from_work_dir="output.log" label="${tool.name} on ${on_string}: logfile" />
         <data name="movie" format="mp4" from_work_dir="Movie.mp4" label="${tool.name} on ${on_string}: movie" />
+        <data name="image" format="tiff" from_work_dir="Movie.tif" label="${tool.name} on ${on_string}: image" />
     </outputs>
     <tests>
         <!-- <test>

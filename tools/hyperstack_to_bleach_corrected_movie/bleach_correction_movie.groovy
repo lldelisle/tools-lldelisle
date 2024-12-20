@@ -3,6 +3,7 @@ import emblcmci.BleachCorrection_ExpoFit
 import ij.IJ
 import ij.ImagePlus
 import ij.ImageStack
+import ij.io.FileSaver
 import ij.gui.Overlay
 import ij.gui.TextRoi
 import ij.measure.Calibration
@@ -17,6 +18,7 @@ import ij.util.FontUtil
 
 import java.awt.*
 import java.awt.GraphicsEnvironment
+import java.io.File
 import java.time.Duration
 import java.time.LocalDateTime
 import java.time.LocalTime
@@ -322,6 +324,11 @@ if (display_scalebar) {
 if (! GraphicsEnvironment.isHeadless()){
 	final_imp.show()
 }
+// Save tiff
+def fs = new FileSaver(final_imp)
+File output_path = new File (imp.getTitle() + ".tif" )
+fs.saveAsTiff(output_path.toString() )
+// Save movie
 AVI_Writer avi_writer = new AVI_Writer()
 Calibration cal = final_imp.getCalibration()
 cal.fps = frame_per_second
